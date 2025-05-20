@@ -198,7 +198,7 @@ function createGIF() {
   const gif = new GIF({
     workers: 2,
     quality: 10,
-    workerScript: 'https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js'
+    workerScript: 'gif.worker.js'
   });
 
   frames.forEach((frame) => {
