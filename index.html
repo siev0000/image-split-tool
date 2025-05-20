@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <title>画像分割ツール</title>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7206446342174250"
+     crossorigin="anonymous"></script>
   <link rel="stylesheet" href="style_final.css">
   <script src="gif.js"></script>
 </head>
 <body>
   <h2>画像分割ツール</h2>
-
   <!-- 入力と設定エリア -->
   <div class="input-panel">
     <label>画像を選択: <input type="file" id="imageInput" accept="image/*"></label>
@@ -57,7 +58,7 @@
         </div>
         <div class="row gif-controls">
           <label>フレーム間隔（ms）:
-            <input type="number" id="gifDelay" value="500" min="10">
+            <input type="number" id="gifDelay" value="60" min="10">
           </label>
           <button onclick="createGIF()">GIF出力</button>
         </div>
@@ -69,5 +70,8 @@
   <!-- スクリプト読み込み -->
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="script.js"></script>
+
+
+
 </body>
 </html>
