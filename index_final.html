@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>画像分割ツール</title>
+  <link rel="stylesheet" href="style_final.css">
+  <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+</head>
+<body>
+  <h2>画像分割ツール</h2>
+
+  <!-- 入力と設定エリア -->
+  <div class="input-panel">
+    <label>画像を選択: <input type="file" id="imageInput" accept="image/*"></label>
+    <div id="basePreview"></div>
+
+    <label>分割数（横 × 縦）:
+      <input type="number" id="splitX" value="5" min="1"> ×
+      <input type="number" id="splitY" value="3" min="1">
+    </label>
+
+    <label>並び方向:
+      <select id="direction">
+        <option value="horizontal">横</option>
+        <option value="vertical">縦</option>
+      </select>
+    </label>
+
+    <label>出力サイズ（幅 × 高さ）:
+      <input type="number" id="resizeWidth" placeholder="例: 120" min="1"> ×
+      <input type="number" id="resizeHeight" placeholder="例: 120" min="1">
+    </label>
+
+    <label>回転角度（0〜360°）:
+      <input type="number" id="rotation" value="0" min="0" max="360">
+    </label>
+
+    <button onclick="splitImage()">分割</button>
+  </div>
+
+  <!-- タブ切替 -->
+  <div class="tab-container">
+    <div class="tabs">
+      <button class="tab-button active" onclick="switchTab('editor')">編集画面</button>
+      <button class="tab-button" onclick="switchTab('output')">出力画面</button>
+    </div>
+
+    <div class="tab-content active" id="editorTab">
+      <div id="editorArea" class="frame-list sortable"></div>
+    </div>
+
+    <div class="tab-content" id="outputTab">
+      <div class="output-buttons">
+        <div class="row">
+          <button onclick="renderOutput()">変更を反映</button>
+          <button onclick="download()">ダウンロード</button>
+        </div>
+        <div class="row gif-controls">
+          <label>フレーム間隔（ms）:
+            <input type="number" id="gifDelay" value="500" min="10">
+          </label>
+          <button onclick="createGIF()">GIF出力</button>
+        </div>
+      </div>
+      <canvas id="outputCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- スクリプト読み込み -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
