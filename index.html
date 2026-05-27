@@ -36,8 +36,9 @@
       <input type="number" id="rotation" value="0" min="0" max="360">
     </label>
 
-    <div class="effect-panel">
-      <h3>エフェクト設定</h3>
+    <details class="effect-panel" open>
+      <summary class="effect-header">エフェクト設定</summary>
+      <div class="effect-body">
       <label>プリセット:
         <select id="effectPreset">
           <option value="none">なし</option>
@@ -77,7 +78,8 @@
       <label>カラー強度（%）:
         <input type="number" id="effectTintStrength" value="0" min="0" max="100">
       </label>
-    </div>
+      </div>
+    </details>
 
     <button onclick="splitImage()">分割</button>
   </div>

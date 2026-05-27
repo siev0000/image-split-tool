@@ -263,6 +263,11 @@ function switchTab(tabName) {
 }
 
 function splitImage() {
+  if (!image.src || !image.width || !image.height) {
+    alert("先に画像を選択してください");
+    return;
+  }
+
   const splitX = parseInt(document.getElementById("splitX").value);
   const splitY = parseInt(document.getElementById("splitY").value);
   const resizeW = parseInt(document.getElementById("resizeWidth").value);
@@ -288,6 +293,8 @@ function splitImage() {
       createFrameElement(piece);
     }
   }
+
+  renderOutputAndGIF();
 }
 
 function createFrameElement(piece) {
