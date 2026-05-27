@@ -175,10 +175,19 @@ canvas {
   font-weight: 700;
   user-select: none;
   padding: 0.3em 0;
+  border: none;
+  background: transparent;
+  color: #222;
+  width: 100%;
+  text-align: left;
 }
 
 .effect-body {
   margin-top: 0.4em;
+}
+
+.effect-body.collapsed {
+  display: none;
 }
 
 .gif-preview-panel {
