@@ -17,6 +17,22 @@ select {
   margin-left: 0.5em;
 }
 
+input[type="range"] {
+  width: 180px;
+  margin-left: 0.5em;
+  vertical-align: middle;
+}
+
+input[type="color"] {
+  margin-left: 0.5em;
+  width: 48px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  vertical-align: middle;
+  background: transparent;
+}
+
 button {
   padding: 0.6em 1em;
   background: #3498db;

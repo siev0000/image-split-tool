@@ -5,6 +5,17 @@ let pieces = [];
 let generatedGifUrl = null;
 let activeGifRender = null;
 let gifRenderToken = 0;
+const EFFECT_INPUT_IDS = [
+  "effectPreset",
+  "effectBrightness",
+  "effectContrast",
+  "effectSaturate",
+  "effectHue",
+  "effectHueRange",
+  "effectBlur",
+  "effectTintColor",
+  "effectTintStrength"
+];
 
 function resolveWorkerScriptUrl() {
   try {
@@ -21,14 +32,158 @@ function buildGifErrorMessage(baseMessage) {
   return baseMessage;
 }
 
-["splitX", "splitY"].forEach((id) => {
+function bindInputEvent(id, handler) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.addEventListener("input", () => {
+  el.addEventListener("input", handler);
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getNumberValue(id, fallback = 0) {
+  const el = document.getElementById(id);
+  if (!el) return fallback;
+  const parsed = parseFloat(el.value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function syncHueInputs(fromId) {
+  const hueInput = document.getElementById("effectHue");
+  const hueRange = document.getElementById("effectHueRange");
+  if (!hueInput || !hueRange) return;
+
+  if (fromId === "effectHueRange") {
+    hueInput.value = hueRange.value;
+    return;
+  }
+  const hue = clamp(getNumberValue("effectHue", 0), -180, 180);
+  hueInput.value = String(hue);
+  hueRange.value = String(hue);
+}
+
+function applyPresetToInputs(preset) {
+  const presets = {
+    none: { brightness: 100, contrast: 100, saturate: 100, hue: 0, blur: 0, tintStrength: 0 },
+    grayscale: { brightness: 100, contrast: 100, saturate: 0, hue: 0, blur: 0, tintStrength: 0 },
+    sepia: { brightness: 105, contrast: 100, saturate: 80, hue: -15, blur: 0, tintStrength: 0 },
+    invert: { brightness: 100, contrast: 100, saturate: 100, hue: 0, blur: 0, tintStrength: 0 },
+    vivid: { brightness: 115, contrast: 120, saturate: 160, hue: 0, blur: 0, tintStrength: 0 },
+    dreamy: { brightness: 110, contrast: 92, saturate: 125, hue: 12, blur: 1, tintStrength: 18 }
+  };
+  const selected = presets[preset] || presets.none;
+  document.getElementById("effectBrightness").value = String(selected.brightness);
+  document.getElementById("effectContrast").value = String(selected.contrast);
+  document.getElementById("effectSaturate").value = String(selected.saturate);
+  document.getElementById("effectHue").value = String(selected.hue);
+  document.getElementById("effectBlur").value = String(selected.blur);
+  document.getElementById("effectTintStrength").value = String(selected.tintStrength);
+  syncHueInputs("effectHue");
+}
+
+function getCurrentEffect() {
+  const preset = (document.getElementById("effectPreset")?.value || "none").toLowerCase();
+  return {
+    preset,
+    brightness: clamp(getNumberValue("effectBrightness", 100), 0, 300),
+    contrast: clamp(getNumberValue("effectContrast", 100), 0, 300),
+    saturate: clamp(getNumberValue("effectSaturate", 100), 0, 300),
+    hue: clamp(getNumberValue("effectHue", 0), -180, 180),
+    blur: clamp(getNumberValue("effectBlur", 0), 0, 20),
+    tintColor: document.getElementById("effectTintColor")?.value || "#ff6600",
+    tintStrength: clamp(getNumberValue("effectTintStrength", 0), 0, 100)
+  };
+}
+
+function buildFilterString(extraHue = 0) {
+  const effect = getCurrentEffect();
+  const filters = [];
+
+  if (effect.preset === "grayscale") filters.push("grayscale(100%)");
+  if (effect.preset === "sepia") filters.push("sepia(80%)");
+  if (effect.preset === "invert") filters.push("invert(100%)");
+
+  filters.push(`brightness(${effect.brightness}%)`);
+  filters.push(`contrast(${effect.contrast}%)`);
+  filters.push(`saturate(${effect.saturate}%)`);
+  filters.push(`hue-rotate(${effect.hue + extraHue}deg)`);
+  filters.push(`blur(${effect.blur}px)`);
+
+  return filters.join(" ");
+}
+
+function applyTint(ctx, width, height) {
+  const effect = getCurrentEffect();
+  if (effect.tintStrength <= 0) return;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "source-atop";
+  ctx.globalAlpha = effect.tintStrength / 100;
+  ctx.fillStyle = effect.tintColor;
+  ctx.fillRect(0, 0, width, height);
+  ctx.restore();
+}
+
+function drawPieceOnCanvas(canvas, piece, extraHue = 0) {
+  const ctx = canvas.getContext("2d");
+  canvas.width = piece.w;
+  canvas.height = piece.h;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.filter = buildFilterString(extraHue);
+  ctx.translate(piece.w / 2, piece.h / 2);
+  ctx.rotate(piece.angle * Math.PI / 180);
+  ctx.drawImage(image, piece.sx, piece.sy, piece.partW, piece.partH, -piece.w / 2, -piece.h / 2, piece.w, piece.h);
+  ctx.restore();
+  applyTint(ctx, piece.w, piece.h);
+}
+
+function redrawEditorFrames() {
+  if (!image.src || !pieces.length) return;
+  const frames = document.querySelectorAll("#editorArea .frame");
+  frames.forEach((frame) => {
+    const piece = pieces[parseInt(frame.dataset.id, 10)];
+    const canvas = frame.querySelector("canvas");
+    if (!piece || !canvas) return;
+    drawPieceOnCanvas(canvas, piece);
+  });
+}
+
+function applyEffectsRealtime() {
+  if (!image.src || !image.width || !image.height) return;
+  drawBasePreview();
+  redrawEditorFrames();
+  renderOutput();
+}
+
+function initializeEffectInputs() {
+  const preset = document.getElementById("effectPreset");
+  if (preset) {
+    preset.addEventListener("change", () => {
+      applyPresetToInputs(preset.value);
+      applyEffectsRealtime();
+    });
+  }
+
+  EFFECT_INPUT_IDS.forEach((id) => {
+    bindInputEvent(id, () => {
+      if (id === "effectHueRange" || id === "effectHue") syncHueInputs(id);
+      applyEffectsRealtime();
+    });
+  });
+
+  applyPresetToInputs(document.getElementById("effectPreset")?.value || "none");
+}
+
+["splitX", "splitY"].forEach((id) => {
+  bindInputEvent(id, () => {
     if (!image.src || !image.width || !image.height) return;
     drawBasePreview();
   });
 });
+
+initializeEffectInputs();
 
 document.getElementById('imageInput').addEventListener('change', function(e) {
   const file = e.target.files[0];
@@ -64,7 +219,10 @@ function drawBasePreview() {
   canvas.width = 200;
   canvas.height = image.height * (canvas.width / image.width);
 
+  ctx.filter = buildFilterString();
   ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  ctx.filter = "none";
+  applyTint(ctx, canvas.width, canvas.height);
 
   ctx.strokeStyle = "rgba(0,0,0,0.5)";
   ctx.lineWidth = 1;
@@ -164,13 +322,7 @@ function createFrameElement(piece) {
   controlRow.appendChild(copyButton);
 
   const canvas = document.createElement("canvas");
-  canvas.width = piece.w;
-  canvas.height = piece.h;
-  const ctx = canvas.getContext("2d");
-  ctx.translate(piece.w / 2, piece.h / 2);
-  ctx.rotate(piece.angle * Math.PI / 180);
-  ctx.drawImage(image, piece.sx, piece.sy, piece.partW, piece.partH, -piece.w / 2, -piece.h / 2, piece.w, piece.h);
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  drawPieceOnCanvas(canvas, piece);
 
   frame.appendChild(controlRow);
   frame.appendChild(canvas);
@@ -204,11 +356,9 @@ function renderOutput() {
   all.forEach((p, i) => {
     const dx = direction === "horizontal" ? i * w : 0;
     const dy = direction === "vertical" ? i * h : 0;
-    ctx.save();
-    ctx.translate(dx + w / 2, dy + h / 2);
-    ctx.rotate(p.angle * Math.PI / 180);
-    ctx.drawImage(image, p.sx, p.sy, p.partW, p.partH, -w / 2, -h / 2, w, h);
-    ctx.restore();
+    const tempCanvas = document.createElement("canvas");
+    drawPieceOnCanvas(tempCanvas, p);
+    ctx.drawImage(tempCanvas, dx, dy);
   });
 }
 
