@@ -5,6 +5,7 @@ let pieces = [];
 let generatedGifUrl = null;
 let activeGifRender = null;
 let gifRenderToken = 0;
+let isSyncingTintControls = false;
 const EFFECT_INPUT_IDS = [
   "effectPreset",
   "effectBrightness",
@@ -13,6 +14,7 @@ const EFFECT_INPUT_IDS = [
   "effectHue",
   "effectHueRange",
   "effectBlur",
+  "removeBaseColor",
   "effectTintColor",
   "effectTintStrength"
 ];
@@ -49,6 +51,33 @@ function getNumberValue(id, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function getCheckboxValue(id, fallback = false) {
+  const el = document.getElementById(id);
+  if (!el) return fallback;
+  return !!el.checked;
+}
+
+function syncTintControls(source) {
+  if (isSyncingTintControls) return;
+
+  const effectColor = document.getElementById("effectTintColor");
+  const effectStrength = document.getElementById("effectTintStrength");
+  const outputColor = document.getElementById("outputTintColor");
+  const outputStrength = document.getElementById("outputTintStrength");
+
+  if (!effectColor || !effectStrength || !outputColor || !outputStrength) return;
+
+  isSyncingTintControls = true;
+  if (source === "output") {
+    effectColor.value = outputColor.value;
+    effectStrength.value = outputStrength.value;
+  } else {
+    outputColor.value = effectColor.value;
+    outputStrength.value = effectStrength.value;
+  }
+  isSyncingTintControls = false;
+}
+
 function syncHueInputs(fromId) {
   const hueInput = document.getElementById("effectHue");
   const hueRange = document.getElementById("effectHueRange");
@@ -80,6 +109,7 @@ function applyPresetToInputs(preset) {
   document.getElementById("effectBlur").value = String(selected.blur);
   document.getElementById("effectTintStrength").value = String(selected.tintStrength);
   syncHueInputs("effectHue");
+  syncTintControls("effect");
 }
 
 function getCurrentEffect() {
@@ -91,6 +121,7 @@ function getCurrentEffect() {
     saturate: clamp(getNumberValue("effectSaturate", 100), 0, 300),
     hue: clamp(getNumberValue("effectHue", 0), -180, 180),
     blur: clamp(getNumberValue("effectBlur", 0), 0, 20),
+    removeBaseColor: getCheckboxValue("removeBaseColor", false),
     tintColor: document.getElementById("effectTintColor")?.value || "#ff6600",
     tintStrength: clamp(getNumberValue("effectTintStrength", 0), 0, 100)
   };
@@ -103,6 +134,7 @@ function buildFilterString(extraHue = 0) {
   if (effect.preset === "grayscale") filters.push("grayscale(100%)");
   if (effect.preset === "sepia") filters.push("sepia(80%)");
   if (effect.preset === "invert") filters.push("invert(100%)");
+  if (effect.removeBaseColor) filters.push("grayscale(100%)");
 
   filters.push(`brightness(${effect.brightness}%)`);
   filters.push(`contrast(${effect.contrast}%)`);
@@ -169,10 +201,19 @@ function initializeEffectInputs() {
   EFFECT_INPUT_IDS.forEach((id) => {
     bindInputEvent(id, () => {
       if (id === "effectHueRange" || id === "effectHue") syncHueInputs(id);
+      if (id === "effectTintColor" || id === "effectTintStrength") syncTintControls("effect");
       applyEffectsRealtime();
     });
   });
 
+  ["outputTintColor", "outputTintStrength"].forEach((id) => {
+    bindInputEvent(id, () => {
+      syncTintControls("output");
+      applyEffectsRealtime();
+    });
+  });
+
+  syncTintControls("effect");
   applyPresetToInputs(document.getElementById("effectPreset")?.value || "none");
 }
 
