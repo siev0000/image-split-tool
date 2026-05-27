@@ -195,6 +195,17 @@
                               t.frameFinished(e.data, !1)
                             );
                           }),
+                          (i.onerror = function (e) {
+                            return (
+                              t.activeWorkers.splice(
+                                t.activeWorkers.indexOf(i),
+                                1
+                              ),
+                              t.freeWorkers.push(i),
+                              (t.running = !1),
+                              t.emit("error", e)
+                            );
+                          }),
                           t.freeWorkers.push(i)
                         );
                       };

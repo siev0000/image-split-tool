@@ -2,14 +2,14 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>画像分割ツール</title>
+  <title>GIF・エフェクト画像作成ツール</title>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7206446342174250"
      crossorigin="anonymous"></script>
   <link rel="stylesheet" href="style_final.css">
   <script src="gif.js"></script>
 </head>
 <body>
-  <h2>画像分割ツール</h2>
+  <h2>GIF・エフェクト画像作成ツール</h2>
   <!-- 入力と設定エリア -->
   <div class="input-panel">
     <label>画像を選択: <input type="file" id="imageInput" accept="image/*"></label>
@@ -36,6 +36,40 @@
       <input type="number" id="rotation" value="0" min="0" max="360">
     </label>
 
+    <div class="effect-panel">
+      <h3>エフェクト設定</h3>
+      <label>プリセット:
+        <select id="effectPreset">
+          <option value="none">なし</option>
+          <option value="grayscale">グレースケール</option>
+          <option value="sepia">セピア</option>
+          <option value="invert">ネガ反転</option>
+          <option value="vivid">ビビッド</option>
+          <option value="dreamy">ドリーミー</option>
+        </select>
+      </label>
+
+      <label>明るさ（%）:
+        <input type="number" id="effectBrightness" value="100" min="0" max="300">
+      </label>
+
+      <label>コントラスト（%）:
+        <input type="number" id="effectContrast" value="100" min="0" max="300">
+      </label>
+
+      <label>彩度（%）:
+        <input type="number" id="effectSaturate" value="100" min="0" max="300">
+      </label>
+
+      <label>色相回転（deg）:
+        <input type="number" id="effectHue" value="0" min="-360" max="360">
+      </label>
+
+      <label>ぼかし（px）:
+        <input type="number" id="effectBlur" value="0" min="0" max="20" step="0.5">
+      </label>
+    </div>
+
     <button onclick="splitImage()">分割</button>
   </div>
 
@@ -53,16 +87,26 @@
     <div class="tab-content" id="outputTab">
       <div class="output-buttons">
         <div class="row">
-          <button onclick="renderOutput()">変更を反映</button>
+          <button id="applyAndGifBtn" onclick="renderOutputAndGIF()">変更を反映</button>
           <button onclick="download()">ダウンロード</button>
         </div>
         <div class="row gif-controls">
           <label>フレーム間隔（ms）:
             <input type="number" id="gifDelay" value="60" min="10">
           </label>
-          <button onclick="createGIF()">GIF出力</button>
+          <label>色相アニメーション（deg/フレーム）:
+            <input type="number" id="gifHueStep" value="0" min="-180" max="180">
+          </label>
+          <button id="downloadGifBtn" onclick="downloadGIF()" disabled>GIFダウンロード</button>
         </div>
       </div>
+
+      <div class="gif-preview-panel">
+        <h3>GIFプレビュー</h3>
+        <div id="gifStatus">GIF未生成</div>
+        <img id="gifPreview" alt="GIFプレビュー" />
+      </div>
+
       <canvas id="outputCanvas"></canvas>
     </div>
   </div>

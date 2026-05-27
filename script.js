@@ -2,6 +2,33 @@
 let image = new Image();
 let filename = "output";
 let pieces = [];
+let generatedGifUrl = null;
+let activeGifRender = null;
+let gifRenderToken = 0;
+
+function resolveWorkerScriptUrl() {
+  try {
+    return new URL("gif.worker.js", window.location.href).href;
+  } catch (_) {
+    return "gif.worker.js";
+  }
+}
+
+function buildGifErrorMessage(baseMessage) {
+  if (window.location.protocol === "file:") {
+    return `${baseMessage}（file:// ではWorker制限で失敗する場合があります。ローカルサーバー経由で開いてください）`;
+  }
+  return baseMessage;
+}
+
+["splitX", "splitY"].forEach((id) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener("input", () => {
+    if (!image.src || !image.width || !image.height) return;
+    drawBasePreview();
+  });
+});
 
 document.getElementById('imageInput').addEventListener('change', function(e) {
   const file = e.target.files[0];
@@ -25,10 +52,12 @@ function copyFrame(id) {
 }
 
 function drawBasePreview() {
+  if (!image.src || !image.width || !image.height) return;
+
   const base = document.getElementById("basePreview");
   base.innerHTML = "";
-  const splitX = parseInt(document.getElementById("splitX").value);
-  const splitY = parseInt(document.getElementById("splitY").value);
+  const splitX = Math.max(1, parseInt(document.getElementById("splitX").value) || 1);
+  const splitY = Math.max(1, parseInt(document.getElementById("splitY").value) || 1);
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
 
@@ -183,6 +212,11 @@ function renderOutput() {
   });
 }
 
+function renderOutputAndGIF() {
+  renderOutput();
+  createGIF();
+}
+
 function download() {
   const link = document.createElement("a");
   link.download = filename + "_sorted_result.png";
@@ -190,31 +224,134 @@ function download() {
   link.click();
 }
 
+function downloadGIF() {
+  if (!generatedGifUrl) return;
+  const link = document.createElement("a");
+  link.href = generatedGifUrl;
+  link.download = filename + "_result.gif";
+  link.click();
+}
+
 function createGIF() {
   const frames = document.querySelectorAll("#editorArea .frame");
   const delay = parseInt(document.getElementById("gifDelay").value) || 500;
+  const hueStep = parseFloat(document.getElementById("gifHueStep").value) || 0;
+  const gifStatus = document.getElementById("gifStatus");
+  const gifPreview = document.getElementById("gifPreview");
+  const downloadGifBtn = document.getElementById("downloadGifBtn");
+  const applyAndGifBtn = document.getElementById("applyAndGifBtn");
+
   if (frames.length === 0) return alert("フレームがありません");
+  const visibleFrameCount = Array.from(frames).filter((frame) => !frame.querySelector(".remove")?.checked).length;
+  if (visibleFrameCount === 0) return alert("表示中のフレームがありません");
+
+  if (activeGifRender) {
+    try {
+      activeGifRender.abort();
+    } catch (_) {
+      // no-op
+    }
+    activeGifRender = null;
+  }
+
+  const currentToken = ++gifRenderToken;
+
+  if (generatedGifUrl) {
+    URL.revokeObjectURL(generatedGifUrl);
+    generatedGifUrl = null;
+  }
+
+  if (gifPreview) {
+    gifPreview.removeAttribute("src");
+    gifPreview.style.display = "none";
+  }
+  if (gifStatus) gifStatus.textContent = "GIF生成中... 0.0%";
+  if (downloadGifBtn) downloadGifBtn.disabled = true;
+  if (applyAndGifBtn) applyAndGifBtn.disabled = true;
 
   const gif = new GIF({
     workers: 2,
     quality: 10,
-    workerScript: 'gif.worker.js'
+    workerScript: resolveWorkerScriptUrl()
   });
+  activeGifRender = gif;
 
+  let frameIndex = 0;
   frames.forEach((frame) => {
     if (frame.querySelector(".remove")?.checked) return;
     const canvas = frame.querySelector("canvas");
-    if (canvas) gif.addFrame(canvas, { delay });
+    if (!canvas) return;
+
+    if (hueStep !== 0) {
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext("2d");
+      tempCtx.filter = `hue-rotate(${frameIndex * hueStep}deg)`;
+      tempCtx.drawImage(canvas, 0, 0);
+      tempCtx.filter = "none";
+      gif.addFrame(tempCanvas, { delay, copy: true });
+    } else {
+      gif.addFrame(canvas, { delay, copy: true });
+    }
+    frameIndex++;
+  });
+
+  gif.on("progress", function(progress) {
+    if (currentToken !== gifRenderToken) return;
+    if (!gifStatus) return;
+    const percent = Math.max(0, Math.min(100, progress * 100));
+    gifStatus.textContent = `GIF生成中... ${percent.toFixed(1)}%`;
   });
 
   gif.on('finished', function(blob) {
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'output.gif';
-    link.click();
+    if (currentToken !== gifRenderToken) return;
+    activeGifRender = null;
+    generatedGifUrl = URL.createObjectURL(blob);
+    if (gifPreview) {
+      gifPreview.src = generatedGifUrl;
+      gifPreview.style.display = "block";
+    }
+    if (gifStatus) gifStatus.textContent = "GIF生成完了 100.0%（下で再生中）";
+    if (downloadGifBtn) downloadGifBtn.disabled = false;
+    if (applyAndGifBtn) applyAndGifBtn.disabled = false;
   });
 
-  gif.render();
+  gif.on("abort", function() {
+    if (currentToken !== gifRenderToken) return;
+    activeGifRender = null;
+    if (gifStatus) gifStatus.textContent = "GIF生成を中断しました。再度「変更を反映」を押してください。";
+    if (applyAndGifBtn) applyAndGifBtn.disabled = false;
+  });
+
+  gif.on("error", function(err) {
+    if (currentToken !== gifRenderToken) return;
+    activeGifRender = null;
+    const message = err?.message || err?.filename || "workerの読み込みに失敗しました";
+    if (gifStatus) gifStatus.textContent = `GIF生成エラー: ${buildGifErrorMessage(message)}`;
+    if (applyAndGifBtn) applyAndGifBtn.disabled = false;
+    if (downloadGifBtn) downloadGifBtn.disabled = true;
+  });
+
+  const stallCheckToken = currentToken;
+  setTimeout(() => {
+    if (stallCheckToken !== gifRenderToken) return;
+    if (!activeGifRender) return;
+    if (!gifStatus) return;
+    if (!gifStatus.textContent?.includes("100.0%")) {
+      gifStatus.textContent += "（時間がかかっています）";
+    }
+  }, 10000);
+
+  try {
+    gif.render();
+  } catch (err) {
+    activeGifRender = null;
+    const message = err?.message || "不明なエラー";
+    if (gifStatus) gifStatus.textContent = `GIF生成エラー: ${buildGifErrorMessage(message)}`;
+    if (applyAndGifBtn) applyAndGifBtn.disabled = false;
+    if (downloadGifBtn) downloadGifBtn.disabled = true;
+  }
 }
 
 new Sortable(document.getElementById("editorArea"), {
