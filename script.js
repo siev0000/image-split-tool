@@ -176,6 +176,15 @@ function initializeEffectInputs() {
   applyPresetToInputs(document.getElementById("effectPreset")?.value || "none");
 }
 
+function toggleEffectPanel() {
+  const body = document.getElementById("effectBody");
+  const btn = document.getElementById("effectToggleBtn");
+  if (!body || !btn) return;
+
+  const isHidden = body.classList.toggle("collapsed");
+  btn.textContent = isHidden ? "エフェクト設定 ▶" : "エフェクト設定 ▼";
+}
+
 ["splitX", "splitY"].forEach((id) => {
   bindInputEvent(id, () => {
     if (!image.src || !image.width || !image.height) return;
@@ -265,7 +274,7 @@ function switchTab(tabName) {
 function splitImage() {
   if (!image.src || !image.width || !image.height) {
     alert("先に画像を選択してください");
-    return;
+    return false;
   }
 
   const splitX = parseInt(document.getElementById("splitX").value);
@@ -293,8 +302,16 @@ function splitImage() {
       createFrameElement(piece);
     }
   }
+  return true;
+}
 
-  renderOutputAndGIF();
+function splitAndApply() {
+  const ok = splitImage();
+  if (!ok) return;
+  switchTab("output");
+  requestAnimationFrame(() => {
+    renderOutputAndGIF();
+  });
 }
 
 function createFrameElement(piece) {

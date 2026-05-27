@@ -36,9 +36,11 @@
       <input type="number" id="rotation" value="0" min="0" max="360">
     </label>
 
-    <details class="effect-panel" open>
-      <summary class="effect-header">エフェクト設定</summary>
-      <div class="effect-body">
+    <div class="effect-panel" id="effectPanel">
+      <button type="button" class="effect-header" id="effectToggleBtn" onclick="toggleEffectPanel()">
+        エフェクト設定 ▼
+      </button>
+      <div class="effect-body" id="effectBody">
       <label>プリセット:
         <select id="effectPreset">
           <option value="none">なし</option>
@@ -79,9 +81,9 @@
         <input type="number" id="effectTintStrength" value="0" min="0" max="100">
       </label>
       </div>
-    </details>
+    </div>
 
-    <button onclick="splitImage()">分割</button>
+    <button onclick="splitAndApply()">分割</button>
   </div>
 
   <!-- タブ切替 -->
