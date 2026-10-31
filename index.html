@@ -13,7 +13,7 @@
   <!-- 入力と設定エリア -->
   <div class="input-panel">
     <label>画像を選択: <input type="file" id="imageInput" accept="image/*"></label>
-    <div id="basePreview"></div>
+    <div id="basePreview" title="クリックで拡大"></div>
 
     <label>分割数（横 × 縦）:
       <input type="number" id="splitX" value="5" min="1"> ×
@@ -140,10 +140,25 @@
       <div class="gif-preview-panel">
         <h3>GIFプレビュー</h3>
         <div id="gifStatus">GIF未生成</div>
-        <img id="gifPreview" alt="GIFプレビュー" />
+        <img id="gifPreview" alt="GIFプレビュー" title="クリックで拡大" />
       </div>
 
-      <canvas id="outputCanvas"></canvas>
+      <canvas id="outputCanvas" title="クリックで拡大"></canvas>
+    </div>
+  </div>
+
+  <!-- 画像/GIF拡大プレビュー -->
+  <div id="previewModal" class="preview-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="previewModalTitle">
+    <div class="preview-modal-backdrop" data-preview-close></div>
+    <div class="preview-modal-dialog">
+      <div class="preview-modal-header">
+        <h3 id="previewModalTitle">画像プレビュー</h3>
+        <button type="button" id="previewModalClose" class="preview-modal-close" aria-label="閉じる">×</button>
+      </div>
+      <div class="preview-modal-body">
+        <img id="previewModalImage" alt="拡大プレビュー">
+      </div>
+      <div class="preview-modal-footer">背景クリック・×・Escで閉じます</div>
     </div>
   </div>
 
@@ -151,5 +166,6 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="script.js"></script>
   <script src="hide-mode.js"></script>
+  <script src="zoom-modal.js"></script>
 </body>
 </html>
