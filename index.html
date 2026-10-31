@@ -98,6 +98,16 @@
     </div>
 
     <div class="tab-content active" id="editorTab">
+      <div class="frame-actions" aria-label="フレーム一括操作">
+        <div class="frame-actions-row">
+          <button type="button" id="toggleHideModeBtn" class="hide-mode-button" aria-pressed="false">非表示モード</button>
+          <span id="hideSelectionCount" class="selection-count">0件選択</span>
+          <button type="button" id="hideSelectedBtn" disabled>選択を非表示</button>
+          <button type="button" id="clearHideSelectionBtn" class="secondary-button" disabled>選択解除</button>
+          <button type="button" id="showAllFramesBtn" class="secondary-button">すべて表示</button>
+        </div>
+        <div id="hideModeHelp" class="hide-mode-help">非表示モードをONにすると、フレーム全体をクリックして複数選択できます。</div>
+      </div>
       <div id="editorArea" class="frame-list sortable"></div>
     </div>
 
@@ -140,8 +150,6 @@
   <!-- スクリプト読み込み -->
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="script.js"></script>
-
-
-
+  <script src="hide-mode.js"></script>
 </body>
 </html>
