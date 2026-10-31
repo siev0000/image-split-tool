@@ -1,0 +1,137 @@
+/* 画像 / GIF 拡大プレビュー */
+#basePreview canvas,
+#editorArea .frame canvas,
+#outputCanvas,
+#gifPreview {
+  cursor: zoom-in;
+}
+
+#editorArea.hide-selection-mode .frame canvas {
+  cursor: pointer;
+}
+
+.preview-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.preview-modal.open {
+  display: flex;
+}
+
+.preview-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 16, 22, 0.82);
+  backdrop-filter: blur(3px);
+}
+
+.preview-modal-dialog {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(94vw, 1100px);
+  max-height: 94vh;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #1c252d;
+  color: #fff;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+}
+
+.preview-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.preview-modal-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.preview-modal-close {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.preview-modal-close:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.preview-modal-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  padding: 18px;
+  overflow: auto;
+  background:
+    linear-gradient(45deg, #2a343d 25%, transparent 25%),
+    linear-gradient(-45deg, #2a343d 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #2a343d 75%),
+    linear-gradient(-45deg, transparent 75%, #2a343d 75%),
+    #202a32;
+  background-size: 24px 24px;
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+}
+
+#previewModalImage {
+  display: block;
+  max-width: 88vw;
+  max-height: 78vh;
+  object-fit: contain;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+#previewModalImage.pixel-preview {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.preview-modal-footer {
+  padding: 9px 14px 11px;
+  color: #c7d0d8;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+body.preview-modal-open {
+  overflow: hidden;
+}
+
+@media (max-width: 700px) {
+  .preview-modal {
+    padding: 8px;
+  }
+
+  .preview-modal-dialog {
+    width: 98vw;
+    max-height: 96vh;
+  }
+
+  .preview-modal-body {
+    min-height: 180px;
+    padding: 10px;
+  }
+
+  #previewModalImage {
+    max-width: 94vw;
+    max-height: 76vh;
+  }
+}
