@@ -129,6 +129,7 @@
   });
 
   // 非表示モード中は、コピーや小さいチェック欄ではなくフレーム全体を選択領域にする。
+  // capture=true にして、モード中に「コピー」などの既存操作が先に発火しないようにする。
   editorArea.addEventListener("click", (event) => {
     const frame = event.target.closest(".frame");
     if (!frame || !editorArea.contains(frame)) return;
@@ -149,7 +150,7 @@
         checkbox.dispatchEvent(new Event("change", { bubbles: true }));
       }
     }
-  });
+  }, true);
 
   editorArea.addEventListener("change", (event) => {
     if (!event.target.classList.contains("remove")) return;
