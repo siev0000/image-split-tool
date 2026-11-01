@@ -1,8 +1,19 @@
 (() => {
   const saveMethod = document.getElementById("saveMethod");
+  const saveFormat = document.getElementById("saveFormat");
+  const saveSelectedBtn = document.getElementById("saveSelectedBtn");
 
   function getMethod() {
     return saveMethod?.value || "download";
+  }
+
+  function getFormat() {
+    return saveFormat?.value || "png";
+  }
+
+  function refreshSaveButton() {
+    if (!saveSelectedBtn) return;
+    saveSelectedBtn.textContent = getFormat() === "gif" ? "GIFを保存" : "PNGを保存";
   }
 
   function triggerDownload(blobOrUrl, saveName) {
@@ -69,7 +80,7 @@
   async function savePng() {
     const canvas = document.getElementById("outputCanvas");
     if (!canvas || canvas.width <= 0 || canvas.height <= 0) {
-      alert("保存する出力画像がありません");
+      alert("保存する出力画像がありません。先に画像を分割してください。");
       return;
     }
 
@@ -90,7 +101,7 @@
 
   async function saveGif() {
     if (!generatedGifUrl) {
-      alert("先にGIFを生成してください");
+      alert("先に『GIFを再生成』を押してGIFを生成してください。");
       return;
     }
 
@@ -112,7 +123,19 @@
     }
   }
 
-  // 既存のonclickから呼ばれる関数を保存方法対応版に差し替える。
+  async function saveSelectedOutput() {
+    if (getFormat() === "gif") {
+      await saveGif();
+    } else {
+      await savePng();
+    }
+  }
+
+  saveFormat?.addEventListener("change", refreshSaveButton);
+  refreshSaveButton();
+
+  // 既存関数も互換用に残す。
   window.download = savePng;
   window.downloadGIF = saveGif;
+  window.saveSelectedOutput = saveSelectedOutput;
 })();
