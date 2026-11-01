@@ -7,6 +7,7 @@
   const directionInput = document.getElementById("direction");
   const editorArea = document.getElementById("editorArea");
   const outputCanvas = document.getElementById("outputCanvas");
+  const emptyFramesMessage = document.getElementById("emptyFramesMessage");
 
   const originalImageInfo = document.getElementById("originalImageInfo");
   const splitSizeInfo = document.getElementById("splitSizeInfo");
@@ -74,12 +75,8 @@
     const frames = Array.from(editorArea.querySelectorAll(".frame"));
     const visible = frames.filter((frame) => !frame.querySelector(".remove")?.checked).length;
 
-    frames.forEach((frame, index) => {
-      const label = frame.querySelector(".label");
-      if (label) label.textContent = `出力順: ${index + 1}`;
-    });
-
     if (visibleFrameInfo) visibleFrameInfo.textContent = `${visible} / ${frames.length} 表示`;
+    if (emptyFramesMessage) emptyFramesMessage.style.display = frames.length ? "none" : "block";
   }
 
   [splitXInput, splitYInput, resizeWidthInput, resizeHeightInput].forEach((input) => {
@@ -115,7 +112,11 @@
     });
   }
 
-  // 旧実装の開閉処理を、新UIの名称だけ維持した形で差し替える。
+  // 新UIでは旧タブ表示を使わないため、画面の表示状態だけ切り替えない。
+  // 分割・PNG/GIF生成そのものは script.js の元の処理をそのまま利用する。
+  switchTab = function() {};
+
+  // UI名称だけ新レイアウトに合わせる。
   toggleEffectPanel = function() {
     const body = document.getElementById("effectBody");
     const btn = document.getElementById("effectToggleBtn");
@@ -124,51 +125,7 @@
     btn.textContent = isHidden ? "詳細設定 ▶" : "詳細設定 ▼";
   };
 
-  // 新UIでは「分割して作成」でGIF生成を行わない。
-  // フレーム一覧とPNGプレビューだけ更新し、GIFは「GIFを再生成」ボタンで明示的に作る。
-  splitAndApply = function() {
-    const ok = splitImage();
-    if (!ok) return;
-
-    if (activeGifRender) {
-      try {
-        activeGifRender.abort();
-      } catch (_) {
-        // no-op
-      }
-      activeGifRender = null;
-    }
-
-    gifRenderToken++;
-
-    if (generatedGifUrl) {
-      URL.revokeObjectURL(generatedGifUrl);
-      generatedGifUrl = null;
-    }
-
-    const gifPreview = document.getElementById("gifPreview");
-    const gifStatus = document.getElementById("gifStatus");
-    const downloadGifBtn = document.getElementById("downloadGifBtn");
-
-    if (gifPreview) {
-      gifPreview.removeAttribute("src");
-      gifPreview.style.display = "none";
-    }
-    if (gifStatus) gifStatus.textContent = "GIF未生成";
-    if (downloadGifBtn) downloadGifBtn.disabled = true;
-
-    renderOutput();
-    updateFrameUi();
-
-    requestAnimationFrame(() => {
-      document.getElementById("editorTab")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-    });
-  };
-
-  // canvas要素のデフォルト300×150を空の出力として誤認しないよう初期化。
+  // 初期状態では空canvasを非表示に近い状態にしておく。
   if (outputCanvas && !editorArea?.querySelector(".frame")) {
     outputCanvas.width = 0;
     outputCanvas.height = 0;
