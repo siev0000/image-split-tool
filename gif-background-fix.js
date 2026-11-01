@@ -1,40 +1,48 @@
 (() => {
   const STORAGE_KEY = "imageSplitTool.gifBackground";
 
-  function cleanupOldBackgroundUi() {
+  function removeLegacyPreviewControls() {
     document.querySelector(".gif-preview-tools")?.remove();
-    document.querySelector(".gif-background-settings")?.remove();
-
-    const oldColor = document.getElementById("gifPreviewBgColor");
-    oldColor?.closest("label")?.remove();
+    document.getElementById("gifPreviewBgColor")?.closest("label")?.remove();
     document.getElementById("resetGifPreviewBgBtn")?.remove();
 
-    document.querySelectorAll(".gif-preview-panel button").forEach((button) => {
-      if ((button.textContent || "").includes("市松")) button.remove();
+    document.querySelectorAll(".gif-preview-panel input[type='color']").forEach((input) => {
+      input.closest("label")?.remove();
     });
 
+    document.querySelectorAll(".gif-preview-panel button").forEach((button) => {
+      const text = (button.textContent || "").trim();
+      if (text.includes("市松") || text.includes("背景")) button.remove();
+    });
+  }
+
+  function lockPreviewSurface() {
     const wrap = document.querySelector(".gif-preview-wrap");
     if (wrap) {
       wrap.classList.remove("custom-bg");
       wrap.style.removeProperty("--gif-preview-bg");
-      wrap.style.removeProperty("background");
+      wrap.style.setProperty("background", "#f2f4f6", "important");
       wrap.style.removeProperty("background-color");
     }
 
     const preview = document.getElementById("gifPreview");
-    if (preview) preview.style.removeProperty("background");
+    if (preview) {
+      preview.style.setProperty("background", "transparent", "important");
+    }
   }
 
   function ensureBackgroundControl() {
     const gifSettingBox = document.querySelector(".gif-setting-box");
     if (!gifSettingBox) return null;
 
-    cleanupOldBackgroundUi();
+    removeLegacyPreviewControls();
+    document.querySelector(".gif-background-settings")?.remove();
 
     const row = document.createElement("div");
     row.className = "gif-background-settings";
     row.innerHTML = `
-      <label>GIF映像の背景色
+      <label style="display:grid;gap:6px;margin-top:10px;">
+        GIF映像の背景色
         <input type="color" id="gifBackgroundColor" value="#ffffff">
       </label>
     `;
@@ -69,19 +77,13 @@
     }
   }
 
-  colorInput.addEventListener("input", saveColor);
-  colorInput.addEventListener("change", saveColor);
-  restoreColor();
-
   function buildGifFrame(sourceCanvas, frameIndex, hueStep, backgroundColor) {
     const frameCanvas = document.createElement("canvas");
     frameCanvas.width = sourceCanvas.width;
     frameCanvas.height = sourceCanvas.height;
 
+    // alpha:false で不透明Canvasを作り、GIFへ渡す前に背景色を確定させる。
     const ctx = frameCanvas.getContext("2d", { alpha: false });
-
-    // GIFへ渡すフレーム自体を、指定した背景色で完全に塗る。
-    // その上に元フレームを描くため、透明部分は必ずこの色になる。
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, frameCanvas.width, frameCanvas.height);
 
@@ -95,10 +97,13 @@
     return frameCanvas;
   }
 
+  restoreColor();
+  lockPreviewSurface();
+
   createGIF = function() {
     const frames = Array.from(document.querySelectorAll("#editorArea .frame"));
-    const delay = parseInt(document.getElementById("gifDelay").value, 10) || 500;
-    const hueStep = parseFloat(document.getElementById("gifHueStep").value) || 0;
+    const delay = parseInt(document.getElementById("gifDelay")?.value, 10) || 500;
+    const hueStep = parseFloat(document.getElementById("gifHueStep")?.value) || 0;
     const backgroundColor = colorInput.value || "#ffffff";
 
     const gifStatus = document.getElementById("gifStatus");
@@ -127,7 +132,8 @@
       gifPreview.style.display = "none";
     }
 
-    cleanupOldBackgroundUi();
+    removeLegacyPreviewControls();
+    lockPreviewSurface();
 
     const backgroundLabel = `背景 ${backgroundColor}`;
     if (gifStatus) gifStatus.textContent = `GIF生成中... 0.0%（${backgroundLabel}）`;
@@ -154,7 +160,6 @@
         backgroundColor
       );
 
-      // 元の正常系と同じ Canvas + copy:true を使用する。
       gif.addFrame(encodedCanvas, { delay, copy: true });
       addedFrames++;
     });
@@ -182,6 +187,8 @@
         gifPreview.src = generatedGifUrl;
         gifPreview.style.display = "block";
       }
+      lockPreviewSurface();
+
       if (gifStatus) {
         gifStatus.textContent = `GIF生成完了 100.0%（${backgroundLabel}・下で再生中）`;
       }
@@ -219,4 +226,22 @@
       if (downloadGifBtn) downloadGifBtn.disabled = true;
     }
   };
+
+  colorInput.addEventListener("input", saveColor);
+  colorInput.addEventListener("change", () => {
+    saveColor();
+    removeLegacyPreviewControls();
+    lockPreviewSurface();
+
+    if (document.querySelector("#editorArea .frame")) {
+      createGIF();
+    }
+  });
+
+  // 旧UIがキャッシュ済みスクリプトから後挿入されても消す。
+  const observer = new MutationObserver(() => {
+    removeLegacyPreviewControls();
+    lockPreviewSurface();
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
 })();
