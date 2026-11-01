@@ -115,6 +115,15 @@
     });
   }
 
+  // 旧実装の開閉処理を、新UIの名称だけ維持した形で差し替える。
+  toggleEffectPanel = function() {
+    const body = document.getElementById("effectBody");
+    const btn = document.getElementById("effectToggleBtn");
+    if (!body || !btn) return;
+    const isHidden = body.classList.toggle("collapsed");
+    btn.textContent = isHidden ? "詳細設定 ▶" : "詳細設定 ▼";
+  };
+
   // canvas要素のデフォルト300×150を空の出力として誤認しないよう初期化。
   if (outputCanvas && !editorArea?.querySelector(".frame")) {
     outputCanvas.width = 0;
