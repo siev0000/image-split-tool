@@ -79,6 +79,105 @@
     if (emptyFramesMessage) emptyFramesMessage.style.display = frames.length ? "none" : "block";
   }
 
+  function initializeGifPreviewBackground() {
+    const panel = document.querySelector(".gif-preview-panel");
+    const wrap = panel?.querySelector(".gif-preview-wrap");
+    const header = panel?.querySelector(".preview-card-header");
+    if (!panel || !wrap || !header || panel.querySelector("#gifPreviewBgTools")) return;
+
+    const style = document.createElement("style");
+    style.textContent = `
+      #gifPreviewBgTools {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--line);
+        background: #fbfcfd;
+      }
+      #gifPreviewBgTools .gif-bg-label {
+        color: #344451;
+        font-size: 0.8rem;
+        font-weight: 700;
+      }
+      #gifPreviewBgTools input[type="color"] {
+        width: 42px;
+        height: 32px;
+      }
+      #gifPreviewBgTools button {
+        padding: 0.42rem 0.65rem;
+        font-size: 0.78rem;
+      }
+      .gif-preview-wrap.gif-bg-custom {
+        background: var(--gif-preview-bg, #ffffff) !important;
+      }
+      .gif-preview-wrap.gif-bg-checker {
+        background:
+          linear-gradient(45deg, #eef1f4 25%, transparent 25%),
+          linear-gradient(-45deg, #eef1f4 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #eef1f4 75%),
+          linear-gradient(-45deg, transparent 75%, #eef1f4 75%) !important;
+        background-size: 20px 20px !important;
+        background-position: 0 0, 0 10px, 10px -10px, -10px 0 !important;
+        background-color: #ffffff !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    const tools = document.createElement("div");
+    tools.id = "gifPreviewBgTools";
+
+    const label = document.createElement("span");
+    label.className = "gif-bg-label";
+    label.textContent = "背景";
+
+    const colorInput = document.createElement("input");
+    colorInput.type = "color";
+    colorInput.id = "gifPreviewBgColor";
+    colorInput.title = "GIFプレビュー背景色";
+
+    const checkerButton = document.createElement("button");
+    checkerButton.type = "button";
+    checkerButton.className = "secondary-button";
+    checkerButton.textContent = "市松";
+
+    tools.appendChild(label);
+    tools.appendChild(colorInput);
+    tools.appendChild(checkerButton);
+    header.insertAdjacentElement("afterend", tools);
+
+    const STORAGE_COLOR = "imageSplitTool.gifPreviewBgColor";
+    const STORAGE_MODE = "imageSplitTool.gifPreviewBgMode";
+
+    function setColorBackground(color, save = true) {
+      wrap.classList.remove("gif-bg-checker");
+      wrap.classList.add("gif-bg-custom");
+      wrap.style.setProperty("--gif-preview-bg", color);
+      colorInput.value = color;
+      if (save) {
+        localStorage.setItem(STORAGE_COLOR, color);
+        localStorage.setItem(STORAGE_MODE, "color");
+      }
+    }
+
+    function setCheckerBackground(save = true) {
+      wrap.classList.remove("gif-bg-custom");
+      wrap.classList.add("gif-bg-checker");
+      wrap.style.removeProperty("--gif-preview-bg");
+      if (save) localStorage.setItem(STORAGE_MODE, "checker");
+    }
+
+    colorInput.addEventListener("input", () => setColorBackground(colorInput.value));
+    checkerButton.addEventListener("click", () => setCheckerBackground());
+
+    const savedColor = localStorage.getItem(STORAGE_COLOR) || "#ffffff";
+    const savedMode = localStorage.getItem(STORAGE_MODE) || "checker";
+    colorInput.value = savedColor;
+    if (savedMode === "color") setColorBackground(savedColor, false);
+    else setCheckerBackground(false);
+  }
+
   [splitXInput, splitYInput, resizeWidthInput, resizeHeightInput].forEach((input) => {
     input?.addEventListener("input", updateImageInfo);
   });
@@ -134,4 +233,5 @@
   updateImageInfo();
   updateGifFps();
   updateFrameUi();
+  initializeGifPreviewBackground();
 })();
