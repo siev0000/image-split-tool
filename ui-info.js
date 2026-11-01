@@ -124,6 +124,50 @@
     btn.textContent = isHidden ? "詳細設定 ▶" : "詳細設定 ▼";
   };
 
+  // 新UIでは「分割して作成」でGIF生成を行わない。
+  // フレーム一覧とPNGプレビューだけ更新し、GIFは「GIFを再生成」ボタンで明示的に作る。
+  splitAndApply = function() {
+    const ok = splitImage();
+    if (!ok) return;
+
+    if (activeGifRender) {
+      try {
+        activeGifRender.abort();
+      } catch (_) {
+        // no-op
+      }
+      activeGifRender = null;
+    }
+
+    gifRenderToken++;
+
+    if (generatedGifUrl) {
+      URL.revokeObjectURL(generatedGifUrl);
+      generatedGifUrl = null;
+    }
+
+    const gifPreview = document.getElementById("gifPreview");
+    const gifStatus = document.getElementById("gifStatus");
+    const downloadGifBtn = document.getElementById("downloadGifBtn");
+
+    if (gifPreview) {
+      gifPreview.removeAttribute("src");
+      gifPreview.style.display = "none";
+    }
+    if (gifStatus) gifStatus.textContent = "GIF未生成";
+    if (downloadGifBtn) downloadGifBtn.disabled = true;
+
+    renderOutput();
+    updateFrameUi();
+
+    requestAnimationFrame(() => {
+      document.getElementById("editorTab")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    });
+  };
+
   // canvas要素のデフォルト300×150を空の出力として誤認しないよう初期化。
   if (outputCanvas && !editorArea?.querySelector(".frame")) {
     outputCanvas.width = 0;
