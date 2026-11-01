@@ -52,10 +52,23 @@
   const gifSettingBox = document.querySelector(".gif-setting-box");
   if (!gifSettingBox) return;
 
+  // 旧実装の「プレビュー領域の背景色変更」が残っている場合は解除する。
+  document.querySelector(".gif-preview-tools")?.remove();
+  const gifPreviewWrap = document.querySelector(".gif-preview-wrap");
+  if (gifPreviewWrap) {
+    gifPreviewWrap.classList.remove("custom-bg");
+    gifPreviewWrap.style.removeProperty("--gif-preview-bg");
+    gifPreviewWrap.style.removeProperty("background");
+    gifPreviewWrap.style.removeProperty("background-color");
+  }
+
+  // 二重追加防止。
+  document.querySelector(".gif-background-settings")?.remove();
+
   const settingsRow = document.createElement("div");
   settingsRow.className = "two-fields compact-fields gif-background-settings";
   settingsRow.innerHTML = `
-    <label>GIF背景
+    <label>GIF映像の背景
       <select id="gifBackgroundMode">
         <option value="transparent">透明</option>
         <option value="color">色を付ける</option>
@@ -116,8 +129,7 @@
 
   restoreBackgroundSettings();
 
-  // GIF生成時に指定色を実フレームへ合成する。
-  // 「透明」の場合は従来どおり透明部分を保持する。
+  // GIF生成時に、透明部分の後ろへ指定色を実際に合成する。
   createGIF = function() {
     const frames = document.querySelectorAll("#editorArea .frame");
     const delay = parseInt(document.getElementById("gifDelay").value) || 500;
@@ -152,6 +164,7 @@
     if (gifPreview) {
       gifPreview.removeAttribute("src");
       gifPreview.style.display = "none";
+      gifPreview.style.background = "transparent";
     }
     if (gifStatus) gifStatus.textContent = "GIF生成中... 0.0%";
     if (downloadGifBtn) downloadGifBtn.disabled = true;
@@ -173,12 +186,8 @@
       const tempCanvas = document.createElement("canvas");
       tempCanvas.width = canvas.width;
       tempCanvas.height = canvas.height;
-      const tempCtx = tempCanvas.getContext("2d");
-
-      if (backgroundMode === "color") {
-        tempCtx.fillStyle = backgroundColor;
-        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-      }
+      const tempCtx = tempCanvas.getContext("2d", { alpha: true });
+      tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
 
       if (hueStep !== 0) {
         tempCtx.save();
@@ -187,6 +196,16 @@
         tempCtx.restore();
       } else {
         tempCtx.drawImage(canvas, 0, 0);
+      }
+
+      // 画像を描いた後、その透明部分の背面にだけ色を入れる。
+      if (backgroundMode === "color") {
+        tempCtx.save();
+        tempCtx.globalCompositeOperation = "destination-over";
+        tempCtx.globalAlpha = 1;
+        tempCtx.fillStyle = backgroundColor;
+        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        tempCtx.restore();
       }
 
       gif.addFrame(tempCanvas, { delay, copy: true });
