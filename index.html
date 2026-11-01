@@ -2,104 +2,246 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>GIF・エフェクト画像作成ツール</title>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7206446342174250"
-     crossorigin="anonymous"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image / GIF Tool</title>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7206446342174250" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="style_final.css">
   <link rel="stylesheet" href="zoom-modal.css">
   <link rel="stylesheet" href="base-preview-headers.css">
   <script src="gif.js"></script>
 </head>
 <body>
-  <h2>GIF・エフェクト画像作成ツール</h2>
-  <!-- 入力と設定エリア -->
-  <div class="input-panel">
-    <label>画像を選択: <input type="file" id="imageInput" accept="image/*"></label>
-    <div id="basePreview" title="クリックで拡大"></div>
-
-    <label>分割数（横 × 縦）:
-      <input type="number" id="splitX" value="5" min="1"> ×
-      <input type="number" id="splitY" value="3" min="1">
-    </label>
-
-    <label>並び方向:
-      <select id="direction">
-        <option value="horizontal">横</option>
-        <option value="vertical">縦</option>
-      </select>
-    </label>
-
-    <label>出力サイズ（幅 × 高さ）:
-      <input type="number" id="resizeWidth" placeholder="例: 120" min="1"> ×
-      <input type="number" id="resizeHeight" placeholder="例: 120" min="1">
-    </label>
-
-    <label>回転角度（0〜360°）:
-      <input type="number" id="rotation" value="0" min="0" max="360">
-    </label>
-
-    <div class="effect-panel" id="effectPanel">
-      <button type="button" class="effect-header" id="effectToggleBtn" onclick="toggleEffectPanel()">
-        エフェクト設定 ▼
-      </button>
-      <div class="effect-body" id="effectBody">
-      <label>プリセット:
-        <select id="effectPreset">
-          <option value="none">なし</option>
-          <option value="grayscale">グレースケール</option>
-          <option value="sepia">セピア</option>
-          <option value="invert">ネガ反転</option>
-          <option value="vivid">ビビッド</option>
-          <option value="dreamy">ドリーミー</option>
-        </select>
-      </label>
-
-      <label>明るさ（%）:
-        <input type="number" id="effectBrightness" value="100" min="0" max="300">
-      </label>
-
-      <label>コントラスト（%）:
-        <input type="number" id="effectContrast" value="100" min="0" max="300">
-      </label>
-
-      <label>彩度（%）:
-        <input type="number" id="effectSaturate" value="100" min="0" max="300">
-      </label>
-
-      <label>色相回転（deg）:
-        <input type="range" id="effectHueRange" value="0" min="-180" max="180" step="1">
-        <input type="number" id="effectHue" value="0" min="-180" max="180">
-      </label>
-
-      <label>色相アニメーション（deg/フレーム）:
-        <input type="number" id="gifHueStep" value="0" min="-180" max="180">
-      </label>
-
-      <label>ぼかし（px）:
-        <input type="number" id="effectBlur" value="0" min="0" max="20" step="0.5">
-      </label>
-
-      <label>カラー選択:
-        <input type="color" id="effectTintColor" value="#ff6600">
-      </label>
-
-      <label>カラー強度（%）:
-        <input type="number" id="effectTintStrength" value="0" min="0" max="100">
-      </label>
-      </div>
+  <header class="app-header">
+    <div>
+      <h1>Image / GIF Tool</h1>
+      <p>画像分割・フレーム編集・GIF作成をひとつの画面で操作できます。</p>
     </div>
+  </header>
 
-    <button onclick="splitAndApply()">分割</button>
+  <!-- 既存の switchTab() 互換用。画面上には表示しない -->
+  <div class="legacy-tabs" aria-hidden="true">
+    <button class="tab-button active" onclick="switchTab('editor')">編集画面</button>
+    <button class="tab-button" onclick="switchTab('output')">出力画面</button>
   </div>
 
-  <!-- タブ切替 -->
-  <div class="tab-container">
-    <div class="tabs">
-      <button class="tab-button active" onclick="switchTab('editor')">編集画面</button>
-      <button class="tab-button" onclick="switchTab('output')">出力画面</button>
+  <main class="app-shell">
+    <div class="workspace-grid">
+      <aside class="panel settings-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="panel-kicker">STEP 1</span>
+            <h2>画像設定</h2>
+          </div>
+        </div>
+
+        <div class="field-block">
+          <label class="field-label" for="imageInput">元画像</label>
+          <input type="file" id="imageInput" accept="image/*" class="file-input">
+        </div>
+
+        <div class="field-block">
+          <span class="field-label">分割数</span>
+          <div class="two-fields">
+            <label>横
+              <input type="number" id="splitX" value="5" min="1">
+            </label>
+            <label>縦
+              <input type="number" id="splitY" value="3" min="1">
+            </label>
+          </div>
+          <div class="field-note" id="frameTotalInfo">5 × 3 = 15フレーム</div>
+        </div>
+
+        <div class="field-block">
+          <span class="field-label">出力サイズ</span>
+          <div class="two-fields">
+            <label>幅
+              <input type="number" id="resizeWidth" placeholder="自動" min="1">
+            </label>
+            <label>高さ
+              <input type="number" id="resizeHeight" placeholder="自動" min="1">
+            </label>
+          </div>
+        </div>
+
+        <div class="field-block">
+          <label class="field-label" for="rotation">回転角度</label>
+          <div class="input-with-unit">
+            <input type="number" id="rotation" value="0" min="0" max="360">
+            <span>°</span>
+          </div>
+        </div>
+
+        <button type="button" class="primary-button full-button" onclick="splitAndApply()">分割して作成</button>
+
+        <div class="effect-panel" id="effectPanel">
+          <button type="button" class="effect-header" id="effectToggleBtn" onclick="toggleEffectPanel()">詳細設定 ▶</button>
+          <div class="effect-body collapsed" id="effectBody">
+            <label>プリセット
+              <select id="effectPreset">
+                <option value="none">なし</option>
+                <option value="grayscale">グレースケール</option>
+                <option value="sepia">セピア</option>
+                <option value="invert">ネガ反転</option>
+                <option value="vivid">ビビッド</option>
+                <option value="dreamy">ドリーミー</option>
+              </select>
+            </label>
+
+            <label>明るさ（%）
+              <input type="number" id="effectBrightness" value="100" min="0" max="300">
+            </label>
+            <label>コントラスト（%）
+              <input type="number" id="effectContrast" value="100" min="0" max="300">
+            </label>
+            <label>彩度（%）
+              <input type="number" id="effectSaturate" value="100" min="0" max="300">
+            </label>
+            <label>色相
+              <div class="range-row">
+                <input type="range" id="effectHueRange" value="0" min="-180" max="180" step="1">
+                <input type="number" id="effectHue" value="0" min="-180" max="180">
+              </div>
+            </label>
+            <label>ぼかし（px）
+              <input type="number" id="effectBlur" value="0" min="0" max="20" step="0.5">
+            </label>
+            <label>カラー
+              <input type="color" id="effectTintColor" value="#ff6600">
+            </label>
+            <label>カラー強度（%）
+              <input type="number" id="effectTintStrength" value="0" min="0" max="100">
+            </label>
+            <label class="check-row">
+              <input type="checkbox" id="removeBaseColor">
+              ベースを灰色化
+            </label>
+          </div>
+        </div>
+      </aside>
+
+      <section class="panel source-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="panel-kicker">STEP 2</span>
+            <h2>元画像プレビュー</h2>
+          </div>
+          <span class="panel-hint">クリックで拡大</span>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-card">
+            <span>元画像</span>
+            <strong id="originalImageInfo">未選択</strong>
+          </div>
+          <div class="stat-card">
+            <span>1フレーム</span>
+            <strong id="splitSizeInfo">-</strong>
+          </div>
+          <div class="stat-card">
+            <span>分割数</span>
+            <strong id="splitCountInfo">5 × 3</strong>
+          </div>
+        </div>
+
+        <div class="preview-stage">
+          <div id="basePreview" title="クリックで拡大">
+            <div class="empty-preview">画像を選択するとここに分割プレビューが表示されます。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel output-panel tab-content active" id="outputTab">
+        <div class="panel-heading">
+          <div>
+            <span class="panel-kicker">STEP 3</span>
+            <h2>出力</h2>
+          </div>
+        </div>
+
+        <div class="output-settings-grid">
+          <label>保存形式
+            <select id="saveFormat">
+              <option value="png">PNG</option>
+              <option value="gif">GIF</option>
+            </select>
+          </label>
+          <label>並び方向
+            <select id="direction">
+              <option value="horizontal">横</option>
+              <option value="vertical">縦</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="gif-setting-box">
+          <div class="section-caption">GIF設定</div>
+          <div class="two-fields compact-fields">
+            <label>間隔（ms）
+              <input type="number" id="gifDelay" value="60" min="10">
+            </label>
+            <label>色相/フレーム
+              <input type="number" id="gifHueStep" value="0" min="-180" max="180">
+            </label>
+          </div>
+          <div class="field-note" id="gifFpsInfo">60ms ≒ 16.7fps</div>
+          <button type="button" id="applyAndGifBtn" class="secondary-action full-button" onclick="renderOutputAndGIF()">GIFを再生成</button>
+        </div>
+
+        <div class="output-color-row">
+          <label>カラー
+            <input type="color" id="outputTintColor" value="#ff6600">
+          </label>
+          <label>強度（%）
+            <input type="number" id="outputTintStrength" value="0" min="0" max="100">
+          </label>
+        </div>
+
+        <div class="preview-card">
+          <div class="preview-card-header">
+            <strong>PNGプレビュー</strong>
+            <span>クリックで拡大</span>
+          </div>
+          <div class="output-canvas-wrap">
+            <canvas id="outputCanvas" title="クリックで拡大"></canvas>
+          </div>
+        </div>
+
+        <div class="preview-card gif-preview-panel">
+          <div class="preview-card-header">
+            <strong>GIFプレビュー</strong>
+            <span id="gifStatus">GIF未生成</span>
+          </div>
+          <div class="gif-preview-wrap">
+            <img id="gifPreview" alt="GIFプレビュー" title="クリックで拡大">
+          </div>
+        </div>
+
+        <div class="save-box">
+          <label>保存方法
+            <select id="saveMethod">
+              <option value="download">ダウンロード</option>
+              <option value="saveAs">名前を付けて保存</option>
+            </select>
+          </label>
+          <button type="button" id="saveSelectedBtn" class="save-button full-button" onclick="saveSelectedOutput()">保存</button>
+        </div>
+
+        <!-- script.js の既存GIF状態管理互換用 -->
+        <button id="downloadGifBtn" onclick="downloadGIF()" disabled hidden>GIF保存</button>
+      </section>
     </div>
 
-    <div class="tab-content active" id="editorTab">
+    <section class="panel frames-panel tab-content active" id="editorTab">
+      <div class="frames-heading">
+        <div>
+          <span class="panel-kicker">FRAME EDITOR</span>
+          <h2>フレーム編集</h2>
+          <p>ドラッグで並び替え。通常クリックで拡大、非表示モード中はフレーム全体を選択できます。</p>
+        </div>
+        <div class="visible-count" id="visibleFrameInfo">0 / 0 表示</div>
+      </div>
+
       <div class="frame-actions" aria-label="フレーム一括操作">
         <div class="frame-actions-row">
           <button type="button" id="toggleHideModeBtn" class="hide-mode-button" aria-pressed="false">非表示モード</button>
@@ -110,50 +252,11 @@
         </div>
         <div id="hideModeHelp" class="hide-mode-help">非表示モードをONにすると、フレーム全体をクリックして複数選択できます。</div>
       </div>
+
       <div id="editorArea" class="frame-list sortable"></div>
-    </div>
-
-    <div class="tab-content" id="outputTab">
-      <div class="output-buttons">
-        <div class="row">
-          <button id="applyAndGifBtn" onclick="renderOutputAndGIF()">変更を反映</button>
-          <label>保存方法:
-            <select id="saveMethod" style="width:auto; min-width:150px;">
-              <option value="download">ダウンロード</option>
-              <option value="saveAs">名前を付けて保存</option>
-            </select>
-          </label>
-          <button onclick="download()">PNG保存</button>
-        </div>
-        <div class="row gif-controls">
-          <label>フレーム間隔（ms）:
-            <input type="number" id="gifDelay" value="60" min="10">
-          </label>
-          <label>カラー選択:
-            <input type="color" id="outputTintColor" value="#ff6600">
-          </label>
-          <label>カラー強度（%）:
-            <input type="number" id="outputTintStrength" value="0" min="0" max="100">
-          </label>
-          <button id="downloadGifBtn" onclick="downloadGIF()" disabled>GIF保存</button>
-        </div>
-        <div class="row">
-          <label>
-            <input type="checkbox" id="removeBaseColor">
-            追加処理: 色を消す（ベースを灰色化）
-          </label>
-        </div>
-      </div>
-
-      <div class="gif-preview-panel">
-        <h3>GIFプレビュー</h3>
-        <div id="gifStatus">GIF未生成</div>
-        <img id="gifPreview" alt="GIFプレビュー" title="クリックで拡大" />
-      </div>
-
-      <canvas id="outputCanvas" title="クリックで拡大"></canvas>
-    </div>
-  </div>
+      <div class="empty-frames" id="emptyFramesMessage">画像を分割するとフレームがここに並びます。</div>
+    </section>
+  </main>
 
   <!-- 画像/GIF拡大プレビュー -->
   <div id="previewModal" class="preview-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="previewModalTitle">
@@ -170,12 +273,12 @@
     </div>
   </div>
 
-  <!-- スクリプト読み込み -->
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="script.js"></script>
   <script src="base-preview-headers.js"></script>
   <script src="hide-mode.js"></script>
   <script src="zoom-modal.js"></script>
   <script src="save-mode.js"></script>
+  <script src="ui-info.js"></script>
 </body>
 </html>
