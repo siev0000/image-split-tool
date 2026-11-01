@@ -42,9 +42,7 @@
     }
 
     const preview = document.getElementById("gifPreview");
-    if (preview) {
-      preview.style.background = "transparent";
-    }
+    if (preview) preview.style.background = "transparent";
   }
 
   const { modeInput, colorInput } = ensureBackgroundControls();
@@ -95,17 +93,13 @@
     frameCanvas.width = sourceCanvas.width;
     frameCanvas.height = sourceCanvas.height;
 
-    const ctx = frameCanvas.getContext("2d", { alpha: true });
+    const ctx = frameCanvas.getContext("2d");
     ctx.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
 
-    // 背景色は「プレビュー領域」ではなく、GIFへ渡す各フレームそのものへ描画する。
+    // 色付き背景はGIFへ渡すフレームそのものへ先に描画する。
     if (backgroundMode === "color") {
-      ctx.save();
-      ctx.globalCompositeOperation = "source-over";
-      ctx.globalAlpha = 1;
       ctx.fillStyle = backgroundColor;
       ctx.fillRect(0, 0, frameCanvas.width, frameCanvas.height);
-      ctx.restore();
     }
 
     ctx.save();
@@ -135,9 +129,7 @@
     if (visibleFrames.length === 0) return alert("表示中のフレームがありません");
 
     if (activeGifRender) {
-      try {
-        activeGifRender.abort();
-      } catch (_) {}
+      try { activeGifRender.abort(); } catch (_) {}
       activeGifRender = null;
     }
 
@@ -155,8 +147,9 @@
     }
     resetPreviewOnlyBackground();
 
-    const backgroundLabel =
-      backgroundMode === "color" ? `背景 ${backgroundColor}` : "背景 透明";
+    const backgroundLabel = backgroundMode === "color"
+      ? `背景 ${backgroundColor}`
+      : "背景 透明";
 
     if (gifStatus) gifStatus.textContent = `GIF生成中... 0.0%（${backgroundLabel}）`;
     if (downloadGifBtn) downloadGifBtn.disabled = true;
@@ -170,6 +163,7 @@
     });
     activeGifRender = gif;
 
+    let addedFrames = 0;
     visibleFrames.forEach((frame, index) => {
       const sourceCanvas = frame.querySelector("canvas");
       if (!sourceCanvas) return;
@@ -182,11 +176,18 @@
         backgroundColor
       );
 
-      // CanvasRenderingContext2D を渡すことで gif.js 側の壊れた背景塗り処理を通さず、
-      // 上で完成させたピクセルをそのままGIFへ渡す。
-      const encodedContext = encodedCanvas.getContext("2d", { alpha: true });
-      gif.addFrame(encodedContext, { delay, copy: true });
+      // 元の正常動作と同じく、Canvas要素を copy:true で渡す。
+      gif.addFrame(encodedCanvas, { delay, copy: true });
+      addedFrames++;
     });
+
+    if (addedFrames === 0) {
+      activeGifRender = null;
+      if (gifStatus) gifStatus.textContent = "GIF生成エラー: 有効なフレームがありません";
+      if (applyAndGifBtn) applyAndGifBtn.disabled = false;
+      if (applyFrameChangesBtn) applyFrameChangesBtn.disabled = false;
+      return;
+    }
 
     gif.on("progress", function(progress) {
       if (currentToken !== gifRenderToken || !gifStatus) return;
