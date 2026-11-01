@@ -1,38 +1,18 @@
 (() => {
   const STORAGE_KEY = "imageSplitTool.gifBackground";
 
-  function ensureBackgroundControls() {
-    const gifSettingBox = document.querySelector(".gif-setting-box");
-    if (!gifSettingBox) return { modeInput: null, colorInput: null };
-
+  function cleanupOldBackgroundUi() {
     document.querySelector(".gif-preview-tools")?.remove();
     document.querySelector(".gif-background-settings")?.remove();
 
-    const settingsRow = document.createElement("div");
-    settingsRow.className = "two-fields compact-fields gif-background-settings";
-    settingsRow.innerHTML = `
-      <label>GIF映像の背景
-        <select id="gifBackgroundMode">
-          <option value="transparent">透明</option>
-          <option value="color">色を付ける</option>
-        </select>
-      </label>
-      <label>背景色
-        <input type="color" id="gifBackgroundColor" value="#ffffff">
-      </label>
-    `;
+    const oldColor = document.getElementById("gifPreviewBgColor");
+    oldColor?.closest("label")?.remove();
+    document.getElementById("resetGifPreviewBgBtn")?.remove();
 
-    const fpsInfo = document.getElementById("gifFpsInfo");
-    if (fpsInfo) gifSettingBox.insertBefore(settingsRow, fpsInfo);
-    else gifSettingBox.appendChild(settingsRow);
+    document.querySelectorAll(".gif-preview-panel button").forEach((button) => {
+      if ((button.textContent || "").includes("市松")) button.remove();
+    });
 
-    return {
-      modeInput: document.getElementById("gifBackgroundMode"),
-      colorInput: document.getElementById("gifBackgroundColor")
-    };
-  }
-
-  function resetPreviewOnlyBackground() {
     const wrap = document.querySelector(".gif-preview-wrap");
     if (wrap) {
       wrap.classList.remove("custom-bg");
@@ -42,65 +22,68 @@
     }
 
     const preview = document.getElementById("gifPreview");
-    if (preview) preview.style.background = "transparent";
+    if (preview) preview.style.removeProperty("background");
   }
 
-  const { modeInput, colorInput } = ensureBackgroundControls();
-  if (!modeInput || !colorInput) return;
+  function ensureBackgroundControl() {
+    const gifSettingBox = document.querySelector(".gif-setting-box");
+    if (!gifSettingBox) return null;
 
-  resetPreviewOnlyBackground();
+    cleanupOldBackgroundUi();
 
-  function updateColorState() {
-    colorInput.disabled = modeInput.value !== "color";
+    const row = document.createElement("div");
+    row.className = "gif-background-settings";
+    row.innerHTML = `
+      <label>GIF映像の背景色
+        <input type="color" id="gifBackgroundColor" value="#ffffff">
+      </label>
+    `;
+
+    const fpsInfo = document.getElementById("gifFpsInfo");
+    if (fpsInfo) gifSettingBox.insertBefore(row, fpsInfo);
+    else gifSettingBox.appendChild(row);
+
+    return document.getElementById("gifBackgroundColor");
   }
 
-  function saveSettings() {
-    try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ mode: modeInput.value, color: colorInput.value })
-      );
-    } catch (error) {
-      console.warn("GIF背景設定の保存に失敗しました", error);
-    }
-  }
+  const colorInput = ensureBackgroundControl();
+  if (!colorInput) return;
 
-  function restoreSettings() {
+  function restoreColor() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-      if (saved?.mode === "transparent" || saved?.mode === "color") {
-        modeInput.value = saved.mode;
-      }
-      if (typeof saved?.color === "string" && /^#[0-9a-f]{6}$/i.test(saved.color)) {
-        colorInput.value = saved.color;
+      const color = typeof saved === "string" ? saved : saved?.color;
+      if (typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color)) {
+        colorInput.value = color;
       }
     } catch (error) {
-      console.warn("GIF背景設定の復元に失敗しました", error);
+      console.warn("GIF背景色の復元に失敗しました", error);
     }
-    updateColorState();
   }
 
-  modeInput.addEventListener("change", () => {
-    updateColorState();
-    saveSettings();
-  });
-  colorInput.addEventListener("input", saveSettings);
+  function saveColor() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ color: colorInput.value }));
+    } catch (error) {
+      console.warn("GIF背景色の保存に失敗しました", error);
+    }
+  }
 
-  restoreSettings();
+  colorInput.addEventListener("input", saveColor);
+  colorInput.addEventListener("change", saveColor);
+  restoreColor();
 
-  function buildGifFrame(sourceCanvas, frameIndex, hueStep, backgroundMode, backgroundColor) {
+  function buildGifFrame(sourceCanvas, frameIndex, hueStep, backgroundColor) {
     const frameCanvas = document.createElement("canvas");
     frameCanvas.width = sourceCanvas.width;
     frameCanvas.height = sourceCanvas.height;
 
-    const ctx = frameCanvas.getContext("2d");
-    ctx.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
+    const ctx = frameCanvas.getContext("2d", { alpha: false });
 
-    // 色付き背景はGIFへ渡すフレームそのものへ先に描画する。
-    if (backgroundMode === "color") {
-      ctx.fillStyle = backgroundColor;
-      ctx.fillRect(0, 0, frameCanvas.width, frameCanvas.height);
-    }
+    // GIFへ渡すフレーム自体を、指定した背景色で完全に塗る。
+    // その上に元フレームを描くため、透明部分は必ずこの色になる。
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, frameCanvas.width, frameCanvas.height);
 
     ctx.save();
     if (hueStep !== 0) {
@@ -116,7 +99,6 @@
     const frames = Array.from(document.querySelectorAll("#editorArea .frame"));
     const delay = parseInt(document.getElementById("gifDelay").value, 10) || 500;
     const hueStep = parseFloat(document.getElementById("gifHueStep").value) || 0;
-    const backgroundMode = modeInput.value || "transparent";
     const backgroundColor = colorInput.value || "#ffffff";
 
     const gifStatus = document.getElementById("gifStatus");
@@ -143,14 +125,11 @@
     if (gifPreview) {
       gifPreview.removeAttribute("src");
       gifPreview.style.display = "none";
-      gifPreview.style.background = "transparent";
     }
-    resetPreviewOnlyBackground();
 
-    const backgroundLabel = backgroundMode === "color"
-      ? `背景 ${backgroundColor}`
-      : "背景 透明";
+    cleanupOldBackgroundUi();
 
+    const backgroundLabel = `背景 ${backgroundColor}`;
     if (gifStatus) gifStatus.textContent = `GIF生成中... 0.0%（${backgroundLabel}）`;
     if (downloadGifBtn) downloadGifBtn.disabled = true;
     if (applyAndGifBtn) applyAndGifBtn.disabled = true;
@@ -172,11 +151,10 @@
         sourceCanvas,
         index,
         hueStep,
-        backgroundMode,
         backgroundColor
       );
 
-      // 元の正常動作と同じく、Canvas要素を copy:true で渡す。
+      // 元の正常系と同じ Canvas + copy:true を使用する。
       gif.addFrame(encodedCanvas, { delay, copy: true });
       addedFrames++;
     });
