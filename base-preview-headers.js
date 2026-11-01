@@ -1,7 +1,8 @@
 (() => {
-  const ROW_HEADER_WIDTH = 30;
-  const COLUMN_HEADER_HEIGHT = 24;
-  const PREVIEW_PADDING = 24;
+  const ROW_HEADER_WIDTH = 36;
+  const COLUMN_HEADER_HEIGHT = 28;
+  const HEADER_GAP = 8;
+  const PREVIEW_PADDING = 32;
   const MAX_PREVIEW_WIDTH = 960;
   const MAX_PREVIEW_HEIGHT = 520;
   let resizeTimer = null;
@@ -18,7 +19,7 @@
     const stage = base.closest(".preview-stage") || base.parentElement;
     const availableWidth = Math.max(
       240,
-      (stage?.clientWidth || base.clientWidth || 640) - ROW_HEADER_WIDTH - PREVIEW_PADDING
+      (stage?.clientWidth || base.clientWidth || 640) - ROW_HEADER_WIDTH - HEADER_GAP - PREVIEW_PADDING
     );
 
     const maxWidth = Math.min(MAX_PREVIEW_WIDTH, availableWidth);
@@ -32,6 +33,13 @@
       height: Math.max(1, Math.round(image.height * scale)),
       scale
     };
+  }
+
+  function getHeaderFontSize(splitX) {
+    if (splitX >= 28) return 9;
+    if (splitX >= 20) return 10;
+    if (splitX >= 14) return 11;
+    return 12;
   }
 
   function drawBasePreviewWithHeaders() {
@@ -88,6 +96,10 @@
     sheet.className = "base-preview-sheet";
     sheet.style.setProperty("--preview-width", `${canvas.width}px`);
     sheet.style.setProperty("--preview-height", `${canvas.height}px`);
+    sheet.style.setProperty("--row-header-width", `${ROW_HEADER_WIDTH}px`);
+    sheet.style.setProperty("--column-header-height", `${COLUMN_HEADER_HEIGHT}px`);
+    sheet.style.setProperty("--header-gap", `${HEADER_GAP}px`);
+    sheet.style.setProperty("--header-font-size", `${getHeaderFontSize(splitX)}px`);
     sheet.style.setProperty("--split-x", splitX);
     sheet.style.setProperty("--split-y", splitY);
 
