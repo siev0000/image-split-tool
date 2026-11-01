@@ -5,40 +5,34 @@
     const gifSettingBox = document.querySelector(".gif-setting-box");
     if (!gifSettingBox) return { modeInput: null, colorInput: null };
 
-    let modeInput = document.getElementById("gifBackgroundMode");
-    let colorInput = document.getElementById("gifBackgroundColor");
+    document.querySelector(".gif-preview-tools")?.remove();
+    document.querySelector(".gif-background-settings")?.remove();
 
-    if (!modeInput || !colorInput) {
-      document.querySelector(".gif-background-settings")?.remove();
+    const settingsRow = document.createElement("div");
+    settingsRow.className = "two-fields compact-fields gif-background-settings";
+    settingsRow.innerHTML = `
+      <label>GIF映像の背景
+        <select id="gifBackgroundMode">
+          <option value="transparent">透明</option>
+          <option value="color">色を付ける</option>
+        </select>
+      </label>
+      <label>背景色
+        <input type="color" id="gifBackgroundColor" value="#ffffff">
+      </label>
+    `;
 
-      const settingsRow = document.createElement("div");
-      settingsRow.className = "two-fields compact-fields gif-background-settings";
-      settingsRow.innerHTML = `
-        <label>GIF映像の背景
-          <select id="gifBackgroundMode">
-            <option value="transparent">透明</option>
-            <option value="color">色を付ける</option>
-          </select>
-        </label>
-        <label>背景色
-          <input type="color" id="gifBackgroundColor" value="#ffffff">
-        </label>
-      `;
+    const fpsInfo = document.getElementById("gifFpsInfo");
+    if (fpsInfo) gifSettingBox.insertBefore(settingsRow, fpsInfo);
+    else gifSettingBox.appendChild(settingsRow);
 
-      const fpsInfo = document.getElementById("gifFpsInfo");
-      if (fpsInfo) gifSettingBox.insertBefore(settingsRow, fpsInfo);
-      else gifSettingBox.appendChild(settingsRow);
-
-      modeInput = document.getElementById("gifBackgroundMode");
-      colorInput = document.getElementById("gifBackgroundColor");
-    }
-
-    return { modeInput, colorInput };
+    return {
+      modeInput: document.getElementById("gifBackgroundMode"),
+      colorInput: document.getElementById("gifBackgroundColor")
+    };
   }
 
-  function clearOldPreviewBackground() {
-    document.querySelector(".gif-preview-tools")?.remove();
-
+  function resetPreviewOnlyBackground() {
     const wrap = document.querySelector(".gif-preview-wrap");
     if (wrap) {
       wrap.classList.remove("custom-bg");
@@ -48,44 +42,15 @@
     }
 
     const preview = document.getElementById("gifPreview");
-    if (preview) preview.style.background = "transparent";
-  }
-
-  function patchGifJsBackgroundBug() {
-    if (typeof GIF !== "function" || !GIF.prototype) return;
-    if (GIF.prototype.__imageSplitBackgroundFixed) return;
-
-    // 同梱gif.jsでは getImageData() 内が
-    // ctx.setFill = this.options.background になっており、fillRect() が黒で実行される。
-    // 正しい fillStyle を使う処理へ差し替える。
-    GIF.prototype.getImageData = function(image) {
-      if (this._canvas == null) {
-        this._canvas = document.createElement("canvas");
-        this._canvas.width = this.options.width;
-        this._canvas.height = this.options.height;
-      }
-
-      const ctx = this._canvas.getContext("2d");
-      ctx.save();
-      ctx.globalCompositeOperation = "source-over";
-      ctx.globalAlpha = 1;
-      ctx.clearRect(0, 0, this.options.width, this.options.height);
-      ctx.fillStyle = this.options.background || "#ffffff";
-      ctx.fillRect(0, 0, this.options.width, this.options.height);
-      ctx.drawImage(image, 0, 0);
-      ctx.restore();
-
-      return this.getContextData(ctx);
-    };
-
-    GIF.prototype.__imageSplitBackgroundFixed = true;
+    if (preview) {
+      preview.style.background = "transparent";
+    }
   }
 
   const { modeInput, colorInput } = ensureBackgroundControls();
   if (!modeInput || !colorInput) return;
 
-  clearOldPreviewBackground();
-  patchGifJsBackgroundBug();
+  resetPreviewOnlyBackground();
 
   function updateColorState() {
     colorInput.disabled = modeInput.value !== "color";
@@ -125,8 +90,36 @@
 
   restoreSettings();
 
+  function buildGifFrame(sourceCanvas, frameIndex, hueStep, backgroundMode, backgroundColor) {
+    const frameCanvas = document.createElement("canvas");
+    frameCanvas.width = sourceCanvas.width;
+    frameCanvas.height = sourceCanvas.height;
+
+    const ctx = frameCanvas.getContext("2d", { alpha: true });
+    ctx.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
+
+    // 背景色は「プレビュー領域」ではなく、GIFへ渡す各フレームそのものへ描画する。
+    if (backgroundMode === "color") {
+      ctx.save();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = backgroundColor;
+      ctx.fillRect(0, 0, frameCanvas.width, frameCanvas.height);
+      ctx.restore();
+    }
+
+    ctx.save();
+    if (hueStep !== 0) {
+      ctx.filter = `hue-rotate(${frameIndex * hueStep}deg)`;
+    }
+    ctx.drawImage(sourceCanvas, 0, 0);
+    ctx.restore();
+
+    return frameCanvas;
+  }
+
   createGIF = function() {
-    const frames = document.querySelectorAll("#editorArea .frame");
+    const frames = Array.from(document.querySelectorAll("#editorArea .frame"));
     const delay = parseInt(document.getElementById("gifDelay").value, 10) || 500;
     const hueStep = parseFloat(document.getElementById("gifHueStep").value) || 0;
     const backgroundMode = modeInput.value || "transparent";
@@ -138,11 +131,7 @@
     const applyAndGifBtn = document.getElementById("applyAndGifBtn");
     const applyFrameChangesBtn = document.getElementById("applyFrameChangesBtn");
 
-    if (frames.length === 0) return alert("フレームがありません");
-
-    const visibleFrames = Array.from(frames).filter(
-      (frame) => !frame.querySelector(".remove")?.checked
-    );
+    const visibleFrames = frames.filter((frame) => !frame.querySelector(".remove")?.checked);
     if (visibleFrames.length === 0) return alert("表示中のフレームがありません");
 
     if (activeGifRender) {
@@ -164,6 +153,7 @@
       gifPreview.style.display = "none";
       gifPreview.style.background = "transparent";
     }
+    resetPreviewOnlyBackground();
 
     const backgroundLabel =
       backgroundMode === "color" ? `背景 ${backgroundColor}` : "背景 透明";
@@ -176,42 +166,26 @@
     const gif = new GIF({
       workers: 2,
       quality: 10,
-      workerScript: resolveWorkerScriptUrl(),
-      background: backgroundMode === "color" ? backgroundColor : "#ffffff"
+      workerScript: resolveWorkerScriptUrl()
     });
     activeGifRender = gif;
 
-    let frameIndex = 0;
+    visibleFrames.forEach((frame, index) => {
+      const sourceCanvas = frame.querySelector("canvas");
+      if (!sourceCanvas) return;
 
-    visibleFrames.forEach((frame) => {
-      const canvas = frame.querySelector("canvas");
-      if (!canvas) return;
+      const encodedCanvas = buildGifFrame(
+        sourceCanvas,
+        index,
+        hueStep,
+        backgroundMode,
+        backgroundColor
+      );
 
-      let sourceCanvas = canvas;
-
-      if (hueStep !== 0) {
-        const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = canvas.width;
-        tempCanvas.height = canvas.height;
-        const tempCtx = tempCanvas.getContext("2d", { alpha: true });
-        tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-        tempCtx.save();
-        tempCtx.filter = `hue-rotate(${frameIndex * hueStep}deg)`;
-        tempCtx.drawImage(canvas, 0, 0);
-        tempCtx.restore();
-        sourceCanvas = tempCanvas;
-      }
-
-      if (backgroundMode === "color") {
-        // copy:false にすることで gif.js の getImageData() を通し、
-        // background色を透明部分へ確実に合成する。
-        gif.addFrame(sourceCanvas, { delay, copy: false });
-      } else {
-        // 透明設定は従来挙動を維持する。
-        gif.addFrame(sourceCanvas, { delay, copy: true });
-      }
-
-      frameIndex++;
+      // CanvasRenderingContext2D を渡すことで gif.js 側の壊れた背景塗り処理を通さず、
+      // 上で完成させたピクセルをそのままGIFへ渡す。
+      const encodedContext = encodedCanvas.getContext("2d", { alpha: true });
+      gif.addFrame(encodedContext, { delay, copy: true });
     });
 
     gif.on("progress", function(progress) {
