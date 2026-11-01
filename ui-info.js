@@ -6,6 +6,7 @@
   const gifDelayInput = document.getElementById("gifDelay");
   const directionInput = document.getElementById("direction");
   const editorArea = document.getElementById("editorArea");
+  const outputCanvas = document.getElementById("outputCanvas");
 
   const originalImageInfo = document.getElementById("originalImageInfo");
   const splitSizeInfo = document.getElementById("splitSizeInfo");
@@ -68,11 +69,17 @@
     if (gifFpsInfo) gifFpsInfo.textContent = `${formatSize(delay)}ms ≒ ${fps.toFixed(1)}fps`;
   }
 
-  function updateVisibleCount() {
-    if (!editorArea || !visibleFrameInfo) return;
+  function updateFrameUi() {
+    if (!editorArea) return;
     const frames = Array.from(editorArea.querySelectorAll(".frame"));
     const visible = frames.filter((frame) => !frame.querySelector(".remove")?.checked).length;
-    visibleFrameInfo.textContent = `${visible} / ${frames.length} 表示`;
+
+    frames.forEach((frame, index) => {
+      const label = frame.querySelector(".label");
+      if (label) label.textContent = `出力順: ${index + 1}`;
+    });
+
+    if (visibleFrameInfo) visibleFrameInfo.textContent = `${visible} / ${frames.length} 表示`;
   }
 
   [splitXInput, splitYInput, resizeWidthInput, resizeHeightInput].forEach((input) => {
@@ -96,12 +103,10 @@
     });
   });
 
-  editorArea?.addEventListener("change", updateVisibleCount);
+  editorArea?.addEventListener("change", updateFrameUi);
 
   if (editorArea) {
-    const observer = new MutationObserver(() => {
-      updateVisibleCount();
-    });
+    const observer = new MutationObserver(updateFrameUi);
     observer.observe(editorArea, {
       childList: true,
       subtree: true,
@@ -110,7 +115,13 @@
     });
   }
 
+  // canvas要素のデフォルト300×150を空の出力として誤認しないよう初期化。
+  if (outputCanvas && !editorArea?.querySelector(".frame")) {
+    outputCanvas.width = 0;
+    outputCanvas.height = 0;
+  }
+
   updateImageInfo();
   updateGifFps();
-  updateVisibleCount();
+  updateFrameUi();
 })();
