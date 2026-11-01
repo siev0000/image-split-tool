@@ -1,28 +1,13 @@
 (() => {
   const STORAGE_KEY = "imageSplitTool.gifBackground";
 
-  function removeLegacyPreviewControls() {
-    document.querySelector(".gif-preview-tools")?.remove();
-    document.getElementById("gifPreviewBgColor")?.closest("label")?.remove();
-    document.getElementById("resetGifPreviewBgBtn")?.remove();
-
-    document.querySelectorAll(".gif-preview-panel input[type='color']").forEach((input) => {
-      input.closest("label")?.remove();
-    });
-
-    document.querySelectorAll(".gif-preview-panel button").forEach((button) => {
-      const text = (button.textContent || "").trim();
-      if (text.includes("市松") || text.includes("背景")) button.remove();
-    });
-  }
-
   function lockPreviewSurface() {
     const wrap = document.querySelector(".gif-preview-wrap");
     if (wrap) {
       wrap.classList.remove("custom-bg");
       wrap.style.removeProperty("--gif-preview-bg");
       wrap.style.setProperty("background", "#f2f4f6", "important");
-      wrap.style.removeProperty("background-color");
+      wrap.style.setProperty("background-color", "#f2f4f6", "important");
     }
 
     const preview = document.getElementById("gifPreview");
@@ -32,24 +17,44 @@
   }
 
   function ensureBackgroundControl() {
-    const gifSettingBox = document.querySelector(".gif-setting-box");
-    if (!gifSettingBox) return null;
+    const panel = document.querySelector(".gif-preview-panel");
+    if (!panel) return null;
 
-    removeLegacyPreviewControls();
+    // 以前の実装で作られたカラーピッカーが画面上に残っている場合は、
+    // そのピッカー自体をGIF映像の背景色入力として再利用する。
+    const legacyInput = document.getElementById("gifPreviewBgColor");
+    if (legacyInput) {
+      legacyInput.dataset.gifBackgroundSource = "true";
+      const label = legacyInput.closest("label");
+      if (label) {
+        const textNode = Array.from(label.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
+        if (textNode) textNode.textContent = "GIF映像の背景色 ";
+      }
+      document.getElementById("resetGifPreviewBgBtn")?.remove();
+      document.querySelectorAll(".gif-preview-panel button").forEach((button) => {
+        if ((button.textContent || "").includes("市松")) button.remove();
+      });
+      return legacyInput;
+    }
+
+    // 新UI用。GIFプレビュー直下に1つだけ置く。
     document.querySelector(".gif-background-settings")?.remove();
 
-    const row = document.createElement("div");
-    row.className = "gif-background-settings";
-    row.innerHTML = `
-      <label style="display:grid;gap:6px;margin-top:10px;">
-        GIF映像の背景色
-        <input type="color" id="gifBackgroundColor" value="#ffffff">
-      </label>
-    `;
-
-    const fpsInfo = document.getElementById("gifFpsInfo");
-    if (fpsInfo) gifSettingBox.insertBefore(row, fpsInfo);
-    else gifSettingBox.appendChild(row);
+    let row = document.querySelector(".gif-encoded-background-row");
+    if (!row) {
+      row = document.createElement("div");
+      row.className = "gif-encoded-background-row";
+      row.style.cssText = "padding:8px 12px;border-bottom:1px solid #d9e1e8;background:#fff;display:flex;align-items:center;gap:10px;";
+      row.innerHTML = `
+        <label style="display:flex;align-items:center;gap:10px;font-size:.85rem;font-weight:650;">
+          GIF映像の背景色
+          <input type="color" id="gifBackgroundColor" value="#ffffff">
+        </label>
+      `;
+      const wrap = panel.querySelector(".gif-preview-wrap");
+      if (wrap) panel.insertBefore(row, wrap);
+      else panel.appendChild(row);
+    }
 
     return document.getElementById("gifBackgroundColor");
   }
@@ -82,7 +87,8 @@
     frameCanvas.width = sourceCanvas.width;
     frameCanvas.height = sourceCanvas.height;
 
-    // alpha:false で不透明Canvasを作り、GIFへ渡す前に背景色を確定させる。
+    // ここが実際にGIFの四角い映像領域になる。
+    // 白固定ではなく、画面の背景色ピッカーの値で全面を塗る。
     const ctx = frameCanvas.getContext("2d", { alpha: false });
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, frameCanvas.width, frameCanvas.height);
@@ -131,8 +137,6 @@
       gifPreview.removeAttribute("src");
       gifPreview.style.display = "none";
     }
-
-    removeLegacyPreviewControls();
     lockPreviewSurface();
 
     const backgroundLabel = `背景 ${backgroundColor}`;
@@ -227,21 +231,14 @@
     }
   };
 
-  colorInput.addEventListener("input", saveColor);
+  colorInput.addEventListener("input", () => {
+    saveColor();
+    lockPreviewSurface();
+  });
+
   colorInput.addEventListener("change", () => {
     saveColor();
-    removeLegacyPreviewControls();
     lockPreviewSurface();
-
-    if (document.querySelector("#editorArea .frame")) {
-      createGIF();
-    }
+    if (document.querySelector("#editorArea .frame")) createGIF();
   });
-
-  // 旧UIがキャッシュ済みスクリプトから後挿入されても消す。
-  const observer = new MutationObserver(() => {
-    removeLegacyPreviewControls();
-    lockPreviewSurface();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
 })();
