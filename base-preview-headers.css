@@ -1,5 +1,6 @@
 #basePreview {
-  display: inline-block;
+  display: block;
+  width: 100%;
   margin: 8px 0 14px;
   max-width: 100%;
   overflow: auto;
@@ -10,6 +11,8 @@
   grid-template-columns: 30px var(--preview-width);
   grid-template-rows: 24px var(--preview-height);
   width: max-content;
+  max-width: 100%;
+  margin: 0 auto;
   background: #fff;
   user-select: none;
 }
@@ -60,12 +63,24 @@
   height: var(--preview-height);
   line-height: 0;
   overflow: hidden;
+  background: #fff;
 }
 
 #basePreview .base-preview-canvas {
   display: block;
   width: var(--preview-width);
   height: var(--preview-height);
+  max-width: none;
   border: 0;
   cursor: zoom-in;
+}
+
+@media (max-width: 900px) {
+  #basePreview {
+    overflow-x: auto;
+  }
+
+  .base-preview-sheet {
+    margin: 0;
+  }
 }
