@@ -18,7 +18,6 @@
     </div>
   </header>
 
-  <!-- 既存の switchTab() 互換用。画面上には表示しない -->
   <div class="legacy-tabs" aria-hidden="true">
     <button class="tab-button active" onclick="switchTab('editor')">編集画面</button>
     <button class="tab-button" onclick="switchTab('output')">出力画面</button>
@@ -227,7 +226,6 @@
           <button type="button" id="saveSelectedBtn" class="save-button full-button" onclick="saveSelectedOutput()">保存</button>
         </div>
 
-        <!-- script.js の既存GIF状態管理互換用 -->
         <button id="downloadGifBtn" onclick="downloadGIF()" disabled hidden>GIF保存</button>
       </section>
     </div>
@@ -259,7 +257,6 @@
     </section>
   </main>
 
-  <!-- 画像/GIF拡大プレビュー -->
   <div id="previewModal" class="preview-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="previewModalTitle">
     <div class="preview-modal-backdrop" data-preview-close></div>
     <div class="preview-modal-dialog">
@@ -281,6 +278,7 @@
   <script src="zoom-modal.js"></script>
   <script src="save-mode.js"></script>
   <script src="ui-info.js"></script>
-  <script src="split-settings.js"></script>
+  <script src="split-settings.js?v=20261101-2"></script>
+  <script src="gif-background-fix.js?v=20261101-1"></script>
 </body>
 </html>
