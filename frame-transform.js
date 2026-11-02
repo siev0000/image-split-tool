@@ -47,12 +47,18 @@
       .frame-transform-actions {
         display: flex;
         justify-content: flex-end;
-        margin-top: 8px;
+        gap: 8px;
+        margin-top: 10px;
       }
       .frame-transform-actions button {
-        padding: 0.45rem 0.7rem;
-        background: #7c8c98;
+        padding: 0.5rem 0.75rem;
         font-size: 0.78rem;
+      }
+      #applyFrameTransform {
+        background: var(--primary, #2f80ed);
+      }
+      #resetFrameTransform {
+        background: #7c8c98;
       }
       .frame-transform-note {
         margin-top: 7px;
@@ -93,9 +99,10 @@
         </div>
       </div>
       <div class="frame-transform-actions">
-        <button type="button" id="resetFrameTransform">位置・拡大をリセット</button>
+        <button type="button" id="resetFrameTransform">リセット</button>
+        <button type="button" id="applyFrameTransform">位置・拡大を反映</button>
       </div>
-      <div class="frame-transform-note">全フレーム共通。拡大後にX/Yを動かすと、ズーム位置を左右・上下へずらせます。</div>
+      <div class="frame-transform-note">入力中は再描画しません。数値を決めて「位置・拡大を反映」を押すと、全フレームへまとめて反映します。</div>
     `;
 
     rotationBlock.insertAdjacentElement("afterend", block);
@@ -110,11 +117,14 @@
   const xRange = document.getElementById("frameOffsetXRange");
   const yInput = document.getElementById("frameOffsetY");
   const yRange = document.getElementById("frameOffsetYRange");
+  const applyBtn = document.getElementById("applyFrameTransform");
   const resetBtn = document.getElementById("resetFrameTransform");
 
-  if (!zoomInput || !zoomRange || !xInput || !xRange || !yInput || !yRange || !resetBtn) return;
+  if (!zoomInput || !zoomRange || !xInput || !xRange || !yInput || !yRange || !applyBtn || !resetBtn) return;
 
-  function getSettings() {
+  let appliedSettings = { zoom: 100, x: 0, y: 0 };
+
+  function getInputSettings() {
     return {
       zoom: clamp(parseFloat(zoomInput.value) || 100, 25, 400),
       x: clamp(parseFloat(xInput.value) || 0, -100, 100),
@@ -122,15 +132,24 @@
     };
   }
 
-  function syncPair(numberInput, rangeInput, min, max) {
-    const value = clamp(parseFloat(numberInput.value) || 0, min, max);
+  function syncPair(numberInput, rangeInput, min, max, fallback = 0) {
+    const raw = parseFloat(numberInput.value);
+    const value = clamp(Number.isFinite(raw) ? raw : fallback, min, max);
     numberInput.value = String(value);
     rangeInput.value = String(value);
+    return value;
   }
 
-  function saveSettings() {
+  function syncAllInputs() {
+    const zoom = syncPair(zoomInput, zoomRange, 25, 400, 100);
+    const x = syncPair(xInput, xRange, -100, 100, 0);
+    const y = syncPair(yInput, yRange, -100, 100, 0);
+    return { zoom, x, y };
+  }
+
+  function saveAppliedSettings() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(getSettings()));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appliedSettings));
     } catch (error) {
       console.warn("位置・拡大設定の保存に失敗しました", error);
     }
@@ -140,17 +159,20 @@
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
       if (saved && typeof saved === "object") {
-        zoomInput.value = String(clamp(parseFloat(saved.zoom) || 100, 25, 400));
-        xInput.value = String(clamp(parseFloat(saved.x) || 0, -100, 100));
-        yInput.value = String(clamp(parseFloat(saved.y) || 0, -100, 100));
+        appliedSettings = {
+          zoom: clamp(parseFloat(saved.zoom) || 100, 25, 400),
+          x: clamp(parseFloat(saved.x) || 0, -100, 100),
+          y: clamp(parseFloat(saved.y) || 0, -100, 100)
+        };
       }
     } catch (error) {
       console.warn("位置・拡大設定の復元に失敗しました", error);
     }
 
-    syncPair(zoomInput, zoomRange, 25, 400);
-    syncPair(xInput, xRange, -100, 100);
-    syncPair(yInput, yRange, -100, 100);
+    zoomInput.value = String(appliedSettings.zoom);
+    xInput.value = String(appliedSettings.x);
+    yInput.value = String(appliedSettings.y);
+    syncAllInputs();
   }
 
   function redraw() {
@@ -162,38 +184,33 @@
     }
   }
 
-  function bindPair(numberInput, rangeInput, min, max) {
+  function bindPair(numberInput, rangeInput, min, max, fallback) {
     rangeInput.addEventListener("input", () => {
       numberInput.value = rangeInput.value;
-      saveSettings();
-      redraw();
     });
 
     numberInput.addEventListener("input", () => {
       if (numberInput.value === "" || numberInput.value === "-") return;
-      syncPair(numberInput, rangeInput, min, max);
-      saveSettings();
-      redraw();
+      const raw = parseFloat(numberInput.value);
+      if (!Number.isFinite(raw)) return;
+      rangeInput.value = String(clamp(raw, min, max));
     });
 
     numberInput.addEventListener("change", () => {
-      syncPair(numberInput, rangeInput, min, max);
-      saveSettings();
-      redraw();
+      syncPair(numberInput, rangeInput, min, max, fallback);
     });
   }
 
-  // script.js の描画処理を、元のエフェクトを保ったまま全フレーム共通のズーム/位置調整対応にする。
+  // 実際の描画では「入力中の値」ではなく「反映済みの値」だけを使う。
   window.drawPieceOnCanvas = function(canvas, piece, extraHue = 0) {
     const ctx = canvas.getContext("2d");
     canvas.width = piece.w;
     canvas.height = piece.h;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const settings = getSettings();
-    const scale = settings.zoom / 100;
-    const offsetX = piece.w * (settings.x / 100);
-    const offsetY = piece.h * (settings.y / 100);
+    const scale = appliedSettings.zoom / 100;
+    const offsetX = piece.w * (appliedSettings.x / 100);
+    const offsetY = piece.h * (appliedSettings.y / 100);
     const drawW = piece.w * scale;
     const drawH = piece.h * scale;
 
@@ -221,18 +238,22 @@
     }
   };
 
-  bindPair(zoomInput, zoomRange, 25, 400);
-  bindPair(xInput, xRange, -100, 100);
-  bindPair(yInput, yRange, -100, 100);
+  bindPair(zoomInput, zoomRange, 25, 400, 100);
+  bindPair(xInput, xRange, -100, 100, 0);
+  bindPair(yInput, yRange, -100, 100, 0);
+
+  applyBtn.addEventListener("click", () => {
+    appliedSettings = syncAllInputs();
+    saveAppliedSettings();
+    redraw();
+  });
 
   resetBtn.addEventListener("click", () => {
     zoomInput.value = "100";
     xInput.value = "0";
     yInput.value = "0";
-    syncPair(zoomInput, zoomRange, 25, 400);
-    syncPair(xInput, xRange, -100, 100);
-    syncPair(yInput, yRange, -100, 100);
-    saveSettings();
+    appliedSettings = syncAllInputs();
+    saveAppliedSettings();
     redraw();
   });
 
