@@ -2,12 +2,13 @@
   const editorArea = document.getElementById("editorArea");
   const toggleBtn = document.getElementById("toggleHideModeBtn");
   const applyBtn = document.getElementById("hideSelectedBtn");
+  const showSelectedBtn = document.getElementById("showSelectedFramesBtn");
   const clearBtn = document.getElementById("clearHideSelectionBtn");
   const showAllBtn = document.getElementById("showAllFramesBtn");
   const countLabel = document.getElementById("hideSelectionCount");
   const helpText = document.getElementById("hideModeHelp");
 
-  if (!editorArea || !toggleBtn || !applyBtn || !clearBtn || !showAllBtn || !countLabel || !helpText) {
+  if (!editorArea || !toggleBtn || !applyBtn || !showSelectedBtn || !clearBtn || !showAllBtn || !countLabel || !helpText) {
     return;
   }
 
@@ -90,6 +91,7 @@
     const count = selectedFrames.size;
     countLabel.textContent = `${count}件選択`;
     applyBtn.disabled = count === 0;
+    showSelectedBtn.disabled = count === 0;
     clearBtn.disabled = count === 0;
 
     if (message) {
@@ -99,7 +101,7 @@
     } else if (hideMode) {
       helpText.textContent = "クリックで個別選択。長押ししてそのまま動かすと範囲を一括選択できます。";
     } else {
-      helpText.textContent = "非表示モードをONにすると、フレーム全体をクリックして複数選択できます。";
+      helpText.textContent = "非表示モードをONにすると、フレームを選択して一括表示・非表示できます。";
     }
   }
 
@@ -226,6 +228,22 @@
     rerenderOutput();
   });
 
+  showSelectedBtn.addEventListener("click", () => {
+    if (selectedFrames.size === 0) return;
+
+    const targets = Array.from(selectedFrames);
+    targets.forEach((frame) => {
+      const checkbox = frame.querySelector(".remove");
+      if (!checkbox) return;
+      checkbox.checked = false;
+      refreshHiddenAppearance(frame);
+    });
+
+    clearSelection(`${targets.length}件を表示状態に戻しました。続けて選択できます。`);
+    notifyFrameStateChanged();
+    rerenderOutput();
+  });
+
   clearBtn.addEventListener("click", () => {
     clearSelection();
   });
@@ -290,7 +308,7 @@
       longPressBaseSelection = new Set();
       longPressActive = false;
       editorArea.classList.remove("range-selecting");
-      updateSelectionUI("範囲を選択しました。『選択を非表示』で反映できます。");
+      updateSelectionUI("範囲を選択しました。『選択を非表示』『選択を表示』で反映できます。");
       setTimeout(() => { suppressNextClick = false; }, 50);
     }
   }
